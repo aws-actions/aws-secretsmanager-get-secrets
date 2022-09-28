@@ -90,16 +90,16 @@ SECRET_ALIAS_2: secretValue6
 ```
 ​
 **Example 2: Get all secrets that begin with a prefix**  
-The following example creates environment variables for all secrets with names that begin with *beta/*.  
+The following example creates environment variables for all secrets with names that begin with *beta*.  
 ​
 ```
 - name: Get Secret Names by Prefix
   uses: aws-actions/aws-secretsmanager-get-secrets@v1
   with:
     secret-ids: |
-      beta/*    # Retrieves all secrets that start with 'beta/'
+      beta*    # Retrieves all secrets that start with 'beta'
 ```
-Assuming the search for `beta/` produces 3 results (`betaSecretName`, `betaTest` and `beta/NewSecret`, environment variables created:  
+Assuming the search for `beta` produced 3 results (`betaSecretName`, `betaTest` and `beta/NewSecret`), environment variables created:  
 ​
 ```
 BETASECRETNAME: secretValue1
