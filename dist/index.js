@@ -85,7 +85,7 @@ function run() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
             // Default client region is set by configure-aws-credentials
-            const client = new client_secrets_manager_1.SecretsManagerClient({ region: process.env.AWS_DEFAULT_REGION });
+            const client = new client_secrets_manager_1.SecretsManagerClient({ region: process.env.AWS_DEFAULT_REGION, customUserAgent: "github-action" });
             const secretConfigInputs = [...new Set(core.getMultilineInput('secret-ids'))];
             const parseJsonSecrets = core.getBooleanInput('parse-json-secrets');
             // Get final list of secrets to request
