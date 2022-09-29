@@ -1,6 +1,6 @@
-name: 'AWS Secrets Manager Github Action'
+name: 'AWS Secrets Manager GitHub Action'
 author: 'AWS Secrets Manager'
-description: 'Retrieves AWS Secrets and allows them to be used as environment variables in Github workflows'
+description: 'GitHub action for retrieving secrets from AWS Secrets Manager'
 branding:
   icon: 'cloud'
   color: 'orange'
