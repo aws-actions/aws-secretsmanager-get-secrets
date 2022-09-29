@@ -7,7 +7,7 @@
     "test": "npm run lint && jest --coverage --verbose",
     "lint": "eslint src/**.ts",
     "fix": "eslint src/** --fix",
-    "build": "tsc && ncc build --source-map --license licenses.txt"
+    "build": "tsc && ncc build ./src/index.ts --source-map --license licenses.txt && ncc build ./src/cleanup.ts -o dist/cleanup"
   },
   "repository": {
     "type": "git",
@@ -33,8 +33,7 @@
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^5.30.5",
     "@typescript-eslint/parser": "^5.30.5",
-    "@types/jest": "^28.1.4",
-    "@vercel/ncc": "^0.31.1",
+    "@vercel/ncc": "^0.34.0",
     "aws-sdk-client-mock": "^1.0.0",
     "eslint": "^8.19.0",
     "jest": "^28.1.2",

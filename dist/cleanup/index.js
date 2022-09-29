@@ -1,4 +1,4 @@
-require('./sourcemap-register.js');/******/ (() => { // webpackBootstrap
+/******/ (() => { // webpackBootstrap
 /******/ 	var __webpack_modules__ = ({
 
 /***/ 7351:
@@ -19089,20 +19089,7 @@ exports["default"] = _default;
 
 /***/ }),
 
-/***/ 9042:
-/***/ ((__unused_webpack_module, exports) => {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.CLEANUP_NAME = exports.LIST_SECRETS_MAX_RESULTS = void 0;
-exports.LIST_SECRETS_MAX_RESULTS = 100;
-exports.CLEANUP_NAME = 'SECRETS_LIST_CLEAN_UP';
-
-
-/***/ }),
-
-/***/ 6144:
+/***/ 3812:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
@@ -19140,47 +19127,41 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.run = void 0;
+exports.cleanup = void 0;
 const core = __importStar(__nccwpck_require__(2186));
-const client_secrets_manager_1 = __nccwpck_require__(9600);
-const utils_1 = __nccwpck_require__(1314);
 const constants_1 = __nccwpck_require__(9042);
-function run() {
+const utils_1 = __nccwpck_require__(1314);
+/**
+ * When the GitHub Actions job is done, clean up any environment variables that
+ * may have been set by the job (https://github.com/aws-actions/configure-aws-credentials/blob/master/cleanup.js)
+ *
+ * Environment variables are not intended to be shared across different jobs in
+ * the same GitHub Actions workflow: GitHub Actions documentation states that
+ * each job runs in a fresh instance.  However, doing our own cleanup will
+ * give us additional assurance that these environment variables are not shared
+ * with any other jobs.
+ */
+function cleanup() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            // Default client region is set by configure-aws-credentials
-            const client = new client_secrets_manager_1.SecretsManagerClient({ region: process.env.AWS_DEFAULT_REGION, customUserAgent: "github-action" });
-            const secretConfigInputs = [...new Set(core.getMultilineInput('secret-ids'))];
-            const parseJsonSecrets = core.getBooleanInput('parse-json-secrets');
-            // Get final list of secrets to request
-            core.info('Building secrets list...');
-            const secretIds = yield (0, utils_1.buildSecretsList)(client, secretConfigInputs);
-            // Keep track of secret names that will need to be cleaned from the environment
-            let secretsToCleanup = [];
-            core.info('Your secret names may be transformed in order to be valid environment variables (see README). Enable Debug logging in order to view the new environment names.');
-            // Get and inject secret values
-            for (let secretId of secretIds) {
-                //  Optionally let user set an alias, i.e. `ENV_NAME,secret_name`
-                let secretAlias = '';
-                [secretAlias, secretId] = (0, utils_1.extractAliasAndSecretIdFromInput)(secretId);
-                // Retrieves the secret name also, if the value is an ARN
-                const isArn = (0, utils_1.isSecretArn)(secretId);
-                try {
-                    const secretValueResponse = yield (0, utils_1.getSecretValue)(client, secretId);
-                    if (!secretAlias) {
-                        secretAlias = isArn ? secretValueResponse.name : secretId;
+            const cleanupSecrets = process.env[constants_1.CLEANUP_NAME];
+            if (cleanupSecrets) {
+                // The GitHub Actions toolkit does not have an option to completely unset
+                // environment variables, so we overwrite the current value with an empty
+                // string.
+                JSON.parse(cleanupSecrets).forEach((env) => {
+                    (0, utils_1.cleanVariable)(env);
+                    if (!process.env[env]) {
+                        core.debug(`Removed secret: ${env}`);
                     }
-                    const injectedSecrets = (0, utils_1.injectSecret)(secretAlias, secretValueResponse.secretValue, parseJsonSecrets);
-                    secretsToCleanup = [...secretsToCleanup, ...injectedSecrets];
-                }
-                catch (err) {
-                    // Fail action for any error
-                    core.setFailed(`Failed to fetch secret: '${secretId}'. Error: ${err}.`);
-                }
+                    else {
+                        throw new Error(`Failed to clean secret from environment: ${env}.`);
+                    }
+                });
+                // Clean overall secret list
+                (0, utils_1.cleanVariable)(constants_1.CLEANUP_NAME);
             }
-            // Export the names of variables to clean up after completion
-            core.exportVariable(constants_1.CLEANUP_NAME, JSON.stringify(secretsToCleanup));
-            core.info("Completed adding secrets.");
+            core.info("Cleanup complete.");
         }
         catch (error) {
             if (error instanceof Error)
@@ -19188,8 +19169,21 @@ function run() {
         }
     });
 }
-exports.run = run;
-run();
+exports.cleanup = cleanup;
+cleanup();
+
+
+/***/ }),
+
+/***/ 9042:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.CLEANUP_NAME = exports.LIST_SECRETS_MAX_RESULTS = void 0;
+exports.LIST_SECRETS_MAX_RESULTS = 100;
+exports.CLEANUP_NAME = 'SECRETS_LIST_CLEAN_UP';
 
 
 /***/ }),
@@ -19691,9 +19685,8 @@ module.exports = JSON.parse('{"amp":"&","apos":"\'","gt":">","lt":"<","quot":"\\
 /******/ 	// startup
 /******/ 	// Load entry module and return exports
 /******/ 	// This entry module is referenced by other modules so it can't be inlined
-/******/ 	var __webpack_exports__ = __nccwpck_require__(6144);
+/******/ 	var __webpack_exports__ = __nccwpck_require__(3812);
 /******/ 	module.exports = __webpack_exports__;
 /******/ 	
 /******/ })()
 ;
-//# sourceMappingURL=index.js.map
