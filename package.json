@@ -1,7 +1,7 @@
 {
   "name": "aws-secretsmanager-get-secrets",
   "version": "1.0.0",
-  "description": "Github action for retrieving secrets from AWS Secrets Manager",
+  "description": "GitHub action for retrieving secrets from AWS Secrets Manager",
   "main": "dist/index.js",
   "scripts": {
     "test": "npm run lint && jest --coverage --verbose",
