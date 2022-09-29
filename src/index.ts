@@ -13,7 +13,7 @@ import { CLEANUP_NAME } from "./constants";
 export async function run(): Promise<void> {
     try {
         // Default client region is set by configure-aws-credentials
-        const client : SecretsManagerClient = new SecretsManagerClient({region: process.env.AWS_DEFAULT_REGION});
+        const client : SecretsManagerClient = new SecretsManagerClient({region: process.env.AWS_DEFAULT_REGION, customUserAgent: "github-action"});
         const secretConfigInputs: string[] = [...new Set(core.getMultilineInput('secret-ids'))];
         const parseJsonSecrets = core.getBooleanInput('parse-json-secrets');
 
