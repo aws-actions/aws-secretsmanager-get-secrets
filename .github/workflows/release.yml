@@ -1,0 +1,19 @@
+name: Update Major Release Tag
+
+on:
+  release:
+    types: [created]
+
+jobs:
+  update-tag:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Get major version num and update tag
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/}
+          MAJOR=${VERSION%%.*}
+          git config --global user.name "GitHub Actions"
+          echo "Updating ${MAJOR} tag"
+          git tag -fa ${MAJOR} -m "Update major version tag"
+          git push origin ${MAJOR} --force
