@@ -129,8 +129,7 @@ function getSecretValue(client, secretId) {
         }
         else if (data.SecretBinary) {
             // Only string and JSON string values are supported in Github env
-            const buff = Buffer.from(data.SecretBinary.toString(), 'base64');
-            secretValue = buff.toString('ascii');
+            secretValue = Buffer.from(data.SecretBinary).toString('ascii');
         }
         if (!(data.Name)) {
             throw new Error('Invalid name for secret');

@@ -75,11 +75,11 @@ describe('Test secret value retrieval', () => {
     });
 
     test('Retrieves a binary secret', async () => {
-        const b64 = Buffer.from(TEST_VALUE, 'binary').toString('base64');
+        const bytes = new TextEncoder().encode(TEST_VALUE);
 
         smMockClient.on(GetSecretValueCommand).resolves({
             Name: TEST_NAME,
-            SecretBinary: b64 as unknown as Uint8Array,
+            SecretBinary: bytes,
         });
 
         const secretValue = await getSecretValue(smClient, TEST_NAME);
