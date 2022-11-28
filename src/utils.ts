@@ -107,8 +107,7 @@ export async function getSecretValue(client: SecretsManagerClient, secretId: str
         secretValue = data.SecretString as string;
     } else if (data.SecretBinary) {
         // Only string and JSON string values are supported in Github env
-        const buff = Buffer.from(data.SecretBinary.toString(), 'base64');
-        secretValue = buff.toString('ascii');
+        secretValue = Buffer.from(data.SecretBinary).toString('ascii');
     }
 
     if (!(data.Name)){
