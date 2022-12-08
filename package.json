@@ -1,45 +1,45 @@
 {
-  "name": "aws-secretsmanager-get-secrets",
-  "version": "1.0.0",
-  "description": "GitHub action for retrieving secrets from AWS Secrets Manager",
-  "main": "dist/index.js",
-  "scripts": {
-    "test": "npm run lint && jest --coverage --verbose",
-    "lint": "eslint src/**.ts",
-    "fix": "eslint src/** --fix",
-    "build": "tsc && ncc build ./src/index.ts --source-map --license licenses.txt && ncc build ./src/cleanup.ts -o dist/cleanup"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/aws-actions/aws-secretsmanager-get-secrets.git"
-  },
-  "keywords": [
-    "AWS",
-    "SecretsManager",
-    "GitHub",
-    "Actions"
-  ],
-  "author": "",
-  "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/aws-actions/aws-secretsmanager-get-secrets/issues"
-  },
-  "homepage": "https://github.com/aws-actions/aws-secretsmanager-get-secrets#readme",
-  "dependencies": {
-    "@actions/core": "^1.9.1",
-    "@actions/github": "^5.0.3",
-    "@aws-sdk/client-secrets-manager": "^3.121.0",
-    "@aws-sdk/node-http-handler": "^3.226.0",
-    "https-proxy-agent": "^5.0.1"
-  },
-  "devDependencies": {
-    "@typescript-eslint/eslint-plugin": "^5.30.5",
-    "@typescript-eslint/parser": "^5.30.5",
-    "@vercel/ncc": "^0.34.0",
-    "aws-sdk-client-mock": "^1.0.0",
-    "eslint": "^8.19.0",
-    "jest": "^28.1.2",
-    "ts-jest": "^28.0.5",
-    "@types/jest": "^28.1.4"
-  }
+	"name": "aws-secretsmanager-get-secrets",
+	"version": "1.0.0",
+	"description": "GitHub action for retrieving secrets from AWS Secrets Manager",
+	"main": "dist/index.js",
+	"scripts": {
+		"test": "npm run lint && jest --coverage --verbose",
+		"lint": "eslint src/**.ts",
+		"fix": "eslint src/** --fix",
+		"build": "tsc && ncc build ./src/index.ts --source-map --license licenses.txt && ncc build ./src/cleanup.ts -o dist/cleanup"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/aws-actions/aws-secretsmanager-get-secrets.git"
+	},
+	"keywords": [
+		"AWS",
+		"SecretsManager",
+		"GitHub",
+		"Actions"
+	],
+	"author": "",
+	"license": "ISC",
+	"bugs": {
+		"url": "https://github.com/aws-actions/aws-secretsmanager-get-secrets/issues"
+	},
+	"homepage": "https://github.com/aws-actions/aws-secretsmanager-get-secrets#readme",
+	"dependencies": {
+		"@actions/core": "^1.9.1",
+		"@actions/github": "^5.0.3",
+		"@aws-sdk/client-secrets-manager": "^3.121.0",
+		"@aws-sdk/node-http-handler": "^3.226.0",
+		"hpagent": "^1.2.0"
+	},
+	"devDependencies": {
+		"@typescript-eslint/eslint-plugin": "^5.30.5",
+		"@typescript-eslint/parser": "^5.30.5",
+		"@vercel/ncc": "^0.34.0",
+		"aws-sdk-client-mock": "^1.0.0",
+		"eslint": "^8.19.0",
+		"jest": "^28.1.2",
+		"ts-jest": "^28.0.5",
+		"@types/jest": "^28.1.4"
+	}
 }

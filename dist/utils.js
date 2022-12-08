@@ -32,7 +32,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.cleanVariable = exports.extractAliasAndSecretIdFromInput = exports.isSecretArn = exports.transformToValidEnvName = exports.isJSONString = exports.injectSecret = exports.getSecretValue = exports.getSecretsWithPrefix = exports.buildSecretsList = void 0;
+exports.getProxy = exports.cleanVariable = exports.extractAliasAndSecretIdFromInput = exports.isSecretArn = exports.transformToValidEnvName = exports.isJSONString = exports.injectSecret = exports.getSecretValue = exports.getSecretsWithPrefix = exports.buildSecretsList = void 0;
 const core = __importStar(require("@actions/core"));
 const client_secrets_manager_1 = require("@aws-sdk/client-secrets-manager");
 const constants_1 = require("./constants");
@@ -244,3 +244,22 @@ function cleanVariable(variableName) {
     delete process.env[variableName];
 }
 exports.cleanVariable = cleanVariable;
+/* Configure proxy server
+ * @param proxyServer: proxy server
+ */
+function getProxy(proxyServer) {
+    const proxyFromEnv = process.env.HTTP_PROXY || process.env.http_proxy;
+    let proxyToSet = null;
+    if (proxyFromEnv || proxyServer) {
+        if (proxyServer) {
+            console.log(`Setting proxy from actions input: ${proxyServer}`);
+            proxyToSet = proxyServer;
+        }
+        else {
+            console.log(`Setting proxy from environment: ${proxyFromEnv}`);
+            proxyToSet = proxyFromEnv;
+        }
+    }
+    return proxyToSet;
+}
+exports.getProxy = getProxy;
