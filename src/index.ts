@@ -1,5 +1,5 @@
 import * as core from '@actions/core';
-import { SecretsManagerClient, SecretsManagerClientConfig } from "@aws-sdk/client-secrets-manager";
+import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
 import { NodeHttpHandler } from '@aws-sdk/node-http-handler';
 import { HttpsProxyAgent } from 'hpagent';
 import { CLEANUP_NAME } from "./constants";
@@ -16,14 +16,14 @@ export async function run(): Promise<void> {
 		const proxyServer = core.getInput('http-proxy', { required: false });
 		const agent = new HttpsProxyAgent({ proxy: proxyServer });
 
-		const secretManagerClientConfig = new SecretsManagerClientConfig({
+		const secretManagerClientConfig = {
 			region: process.env.AWS_DEFAULT_REGION,
 			customUserAgent: "github-action",
 			requestHandler: new NodeHttpHandler({
 				httpAgent: agent,
 				httpsAgent: agent
 			})
-		});
+		};
 
 		// Default client region is set by configure-aws-credentials
 		const client: SecretsManagerClient = new SecretsManagerClient(secretManagerClientConfig);

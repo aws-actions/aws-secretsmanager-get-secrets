@@ -24372,15 +24372,16 @@ function run() {
             //Get Proxy
             const proxyServer = core.getInput('http-proxy', { required: false });
             const agent = new hpagent_1.HttpsProxyAgent({ proxy: proxyServer });
-            // Default client region is set by configure-aws-credentials
-            const client = new client_secrets_manager_1.SecretsManagerClient({
+            const secretManagerClientConfig = {
                 region: process.env.AWS_DEFAULT_REGION,
                 customUserAgent: "github-action",
                 requestHandler: new node_http_handler_1.NodeHttpHandler({
                     httpAgent: agent,
                     httpsAgent: agent
                 })
-            });
+            };
+            // Default client region is set by configure-aws-credentials
+            const client = new client_secrets_manager_1.SecretsManagerClient(secretManagerClientConfig);
             const secretConfigInputs = [...new Set(core.getMultilineInput('secret-ids'))];
             const parseJsonSecrets = core.getBooleanInput('parse-json-secrets');
             // Get final list of secrets to request
