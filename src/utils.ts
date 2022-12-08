@@ -231,3 +231,23 @@ export function cleanVariable(variableName: string){
     core.exportVariable(variableName, '');
     delete process.env[variableName];
 }
+
+/* Configure proxy server
+ * @param proxyServer: proxy server
+ */
+export function getProxy(proxyServer: string) {
+    const proxyFromEnv = process.env.HTTP_PROXY || process.env.http_proxy;
+    let proxyToSet = null;
+    if (proxyFromEnv || proxyServer) {
+      
+  
+      if (proxyServer){
+        console.log(`Setting proxy from actions input: ${proxyServer}`);
+        proxyToSet = proxyServer;
+      } else {
+        console.log(`Setting proxy from environment: ${proxyFromEnv}`);
+        proxyToSet = proxyFromEnv;
+      }
+    }
+    return proxyToSet;
+  }

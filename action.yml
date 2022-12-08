@@ -12,6 +12,9 @@ inputs:
     description: '(Optional) If true, JSON secrets will be deserialized, creating a secret environment variable for each key-value pair.'
     required: false
     default: 'false'
+  http-proxy:
+    description: 'Proxy to use for the AWS SDK agent'
+    required: false
 runs:
   using: 'node16'
   main: 'dist/index.js'
