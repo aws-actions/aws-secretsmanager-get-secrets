@@ -22793,6 +22793,140 @@ module.exports = XmlNode;
 
 /***/ }),
 
+/***/ 4585:
+/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+
+"use strict";
+
+
+const https = __nccwpck_require__(5687)
+const http = __nccwpck_require__(3685)
+const { URL } = __nccwpck_require__(7310)
+
+class HttpProxyAgent extends http.Agent {
+  constructor (options) {
+    const { proxy, proxyRequestOptions, ...opts } = options
+    super(opts)
+    this.proxy = typeof proxy === 'string'
+      ? new URL(proxy)
+      : proxy
+    this.proxyRequestOptions = proxyRequestOptions || {}
+  }
+
+  createConnection (options, callback) {
+    const requestOptions = {
+      ...this.proxyRequestOptions,
+      method: 'CONNECT',
+      host: this.proxy.hostname,
+      port: this.proxy.port,
+      path: `${options.host}:${options.port}`,
+      setHost: false,
+      headers: { ...this.proxyRequestOptions.headers, connection: this.keepAlive ? 'keep-alive' : 'close', host: `${options.host}:${options.port}` },
+      agent: false,
+      timeout: options.timeout || 0
+    }
+
+    if (this.proxy.username || this.proxy.password) {
+      const base64 = Buffer.from(`${decodeURIComponent(this.proxy.username || '')}:${decodeURIComponent(this.proxy.password || '')}`).toString('base64')
+      requestOptions.headers['proxy-authorization'] = `Basic ${base64}`
+    }
+
+    if (this.proxy.protocol === 'https:') {
+      requestOptions.servername = this.proxy.hostname
+    }
+
+    const request = (this.proxy.protocol === 'http:' ? http : https).request(requestOptions)
+    request.once('connect', (response, socket, head) => {
+      request.removeAllListeners()
+      socket.removeAllListeners()
+      if (response.statusCode === 200) {
+        callback(null, socket)
+      } else {
+        socket.destroy()
+        callback(new Error(`Bad response: ${response.statusCode}`), null)
+      }
+    })
+
+    request.once('timeout', () => {
+      request.destroy(new Error('Proxy timeout'))
+    })
+
+    request.once('error', err => {
+      request.removeAllListeners()
+      callback(err, null)
+    })
+
+    request.end()
+  }
+}
+
+class HttpsProxyAgent extends https.Agent {
+  constructor (options) {
+    const { proxy, proxyRequestOptions, ...opts } = options
+    super(opts)
+    this.proxy = typeof proxy === 'string'
+      ? new URL(proxy)
+      : proxy
+    this.proxyRequestOptions = proxyRequestOptions || {}
+  }
+
+  createConnection (options, callback) {
+    const requestOptions = {
+      ...this.proxyRequestOptions,
+      method: 'CONNECT',
+      host: this.proxy.hostname,
+      port: this.proxy.port,
+      path: `${options.host}:${options.port}`,
+      setHost: false,
+      headers: { ...this.proxyRequestOptions.headers, connection: this.keepAlive ? 'keep-alive' : 'close', host: `${options.host}:${options.port}` },
+      agent: false,
+      timeout: options.timeout || 0
+    }
+
+    if (this.proxy.username || this.proxy.password) {
+      const base64 = Buffer.from(`${decodeURIComponent(this.proxy.username || '')}:${decodeURIComponent(this.proxy.password || '')}`).toString('base64')
+      requestOptions.headers['proxy-authorization'] = `Basic ${base64}`
+    }
+
+    // Necessary for the TLS check with the proxy to succeed.
+    if (this.proxy.protocol === 'https:') {
+      requestOptions.servername = this.proxy.hostname
+    }
+
+    const request = (this.proxy.protocol === 'http:' ? http : https).request(requestOptions)
+    request.once('connect', (response, socket, head) => {
+      request.removeAllListeners()
+      socket.removeAllListeners()
+      if (response.statusCode === 200) {
+        const secureSocket = super.createConnection({ ...options, socket })
+        callback(null, secureSocket)
+      } else {
+        socket.destroy()
+        callback(new Error(`Bad response: ${response.statusCode}`), null)
+      }
+    })
+
+    request.once('timeout', () => {
+      request.destroy(new Error('Proxy timeout'))
+    })
+
+    request.once('error', err => {
+      request.removeAllListeners()
+      callback(err, null)
+    })
+
+    request.end()
+  }
+}
+
+module.exports = {
+  HttpProxyAgent,
+  HttpsProxyAgent
+}
+
+
+/***/ }),
+
 /***/ 4526:
 /***/ ((module) => {
 
@@ -24311,9 +24445,11 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.getProxy = exports.cleanVariable = exports.extractAliasAndSecretIdFromInput = exports.isSecretArn = exports.transformToValidEnvName = exports.isJSONString = exports.injectSecret = exports.getSecretValue = exports.getSecretsWithPrefix = exports.buildSecretsList = void 0;
+exports.configureProxy = exports.cleanVariable = exports.extractAliasAndSecretIdFromInput = exports.isSecretArn = exports.transformToValidEnvName = exports.isJSONString = exports.injectSecret = exports.getSecretValue = exports.getSecretsWithPrefix = exports.buildSecretsList = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 const client_secrets_manager_1 = __nccwpck_require__(9600);
+const node_http_handler_1 = __nccwpck_require__(8805);
+const hpagent_1 = __nccwpck_require__(4585);
 const constants_1 = __nccwpck_require__(9042);
 /**
  * Gets the unique list of all secrets to be requested
@@ -24526,10 +24662,10 @@ exports.cleanVariable = cleanVariable;
 /* Configure proxy server
  * @param proxyServer: proxy server
  */
-function getProxy(proxyServer) {
-    const proxyFromEnv = process.env.HTTP_PROXY || process.env.http_proxy;
-    let proxyToSet = null;
+function configureProxy(proxyServer, secretManagerClientConfig) {
+    const proxyFromEnv = process.env.HTTP_PROXY || process.env.http_proxy || "";
     if (proxyFromEnv || proxyServer) {
+        let proxyToSet;
         if (proxyServer) {
             console.log(`Setting proxy from actions input: ${proxyServer}`);
             proxyToSet = proxyServer;
@@ -24538,10 +24674,14 @@ function getProxy(proxyServer) {
             console.log(`Setting proxy from environment: ${proxyFromEnv}`);
             proxyToSet = proxyFromEnv;
         }
+        const agent = new hpagent_1.HttpsProxyAgent({ proxy: proxyToSet });
+        secretManagerClientConfig.requestHandler = new node_http_handler_1.NodeHttpHandler({
+            httpAgent: agent,
+            httpsAgent: agent
+        });
     }
-    return proxyToSet;
 }
-exports.getProxy = getProxy;
+exports.configureProxy = configureProxy;
 
 
 /***/ }),

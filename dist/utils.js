@@ -32,9 +32,11 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getProxy = exports.cleanVariable = exports.extractAliasAndSecretIdFromInput = exports.isSecretArn = exports.transformToValidEnvName = exports.isJSONString = exports.injectSecret = exports.getSecretValue = exports.getSecretsWithPrefix = exports.buildSecretsList = void 0;
+exports.configureProxy = exports.cleanVariable = exports.extractAliasAndSecretIdFromInput = exports.isSecretArn = exports.transformToValidEnvName = exports.isJSONString = exports.injectSecret = exports.getSecretValue = exports.getSecretsWithPrefix = exports.buildSecretsList = void 0;
 const core = __importStar(require("@actions/core"));
 const client_secrets_manager_1 = require("@aws-sdk/client-secrets-manager");
+const node_http_handler_1 = require("@aws-sdk/node-http-handler");
+const hpagent_1 = require("hpagent");
 const constants_1 = require("./constants");
 /**
  * Gets the unique list of all secrets to be requested
@@ -247,10 +249,10 @@ exports.cleanVariable = cleanVariable;
 /* Configure proxy server
  * @param proxyServer: proxy server
  */
-function getProxy(proxyServer) {
-    const proxyFromEnv = process.env.HTTP_PROXY || process.env.http_proxy;
-    let proxyToSet = null;
+function configureProxy(proxyServer, secretManagerClientConfig) {
+    const proxyFromEnv = process.env.HTTP_PROXY || process.env.http_proxy || "";
     if (proxyFromEnv || proxyServer) {
+        let proxyToSet;
         if (proxyServer) {
             console.log(`Setting proxy from actions input: ${proxyServer}`);
             proxyToSet = proxyServer;
@@ -259,7 +261,11 @@ function getProxy(proxyServer) {
             console.log(`Setting proxy from environment: ${proxyFromEnv}`);
             proxyToSet = proxyFromEnv;
         }
+        const agent = new hpagent_1.HttpsProxyAgent({ proxy: proxyToSet });
+        secretManagerClientConfig.requestHandler = new node_http_handler_1.NodeHttpHandler({
+            httpAgent: agent,
+            httpsAgent: agent
+        });
     }
-    return proxyToSet;
 }
-exports.getProxy = getProxy;
+exports.configureProxy = configureProxy;

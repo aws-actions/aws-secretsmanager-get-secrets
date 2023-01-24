@@ -24362,24 +24362,19 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.run = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 const client_secrets_manager_1 = __nccwpck_require__(9600);
-const node_http_handler_1 = __nccwpck_require__(8805);
-const hpagent_1 = __nccwpck_require__(4585);
 const constants_1 = __nccwpck_require__(9042);
 const utils_1 = __nccwpck_require__(1314);
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            //Get Proxy
-            const proxyServer = core.getInput('http-proxy', { required: false });
-            const agent = new hpagent_1.HttpsProxyAgent({ proxy: proxyServer });
+            // Set Default Config
             const secretManagerClientConfig = {
                 region: process.env.AWS_DEFAULT_REGION,
                 customUserAgent: "github-action",
-                requestHandler: new node_http_handler_1.NodeHttpHandler({
-                    httpAgent: agent,
-                    httpsAgent: agent
-                })
             };
+            //Configure Proxy
+            const proxyServer = core.getInput('http-proxy', { required: false });
+            (0, utils_1.configureProxy)(proxyServer, secretManagerClientConfig);
             // Default client region is set by configure-aws-credentials
             const client = new client_secrets_manager_1.SecretsManagerClient(secretManagerClientConfig);
             const secretConfigInputs = [...new Set(core.getMultilineInput('secret-ids'))];
@@ -24464,9 +24459,11 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.getProxy = exports.cleanVariable = exports.extractAliasAndSecretIdFromInput = exports.isSecretArn = exports.transformToValidEnvName = exports.isJSONString = exports.injectSecret = exports.getSecretValue = exports.getSecretsWithPrefix = exports.buildSecretsList = void 0;
+exports.configureProxy = exports.cleanVariable = exports.extractAliasAndSecretIdFromInput = exports.isSecretArn = exports.transformToValidEnvName = exports.isJSONString = exports.injectSecret = exports.getSecretValue = exports.getSecretsWithPrefix = exports.buildSecretsList = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 const client_secrets_manager_1 = __nccwpck_require__(9600);
+const node_http_handler_1 = __nccwpck_require__(8805);
+const hpagent_1 = __nccwpck_require__(4585);
 const constants_1 = __nccwpck_require__(9042);
 /**
  * Gets the unique list of all secrets to be requested
@@ -24679,10 +24676,10 @@ exports.cleanVariable = cleanVariable;
 /* Configure proxy server
  * @param proxyServer: proxy server
  */
-function getProxy(proxyServer) {
-    const proxyFromEnv = process.env.HTTP_PROXY || process.env.http_proxy;
-    let proxyToSet = null;
+function configureProxy(proxyServer, secretManagerClientConfig) {
+    const proxyFromEnv = process.env.HTTP_PROXY || process.env.http_proxy || "";
     if (proxyFromEnv || proxyServer) {
+        let proxyToSet;
         if (proxyServer) {
             console.log(`Setting proxy from actions input: ${proxyServer}`);
             proxyToSet = proxyServer;
@@ -24691,10 +24688,14 @@ function getProxy(proxyServer) {
             console.log(`Setting proxy from environment: ${proxyFromEnv}`);
             proxyToSet = proxyFromEnv;
         }
+        const agent = new hpagent_1.HttpsProxyAgent({ proxy: proxyToSet });
+        secretManagerClientConfig.requestHandler = new node_http_handler_1.NodeHttpHandler({
+            httpAgent: agent,
+            httpsAgent: agent
+        });
     }
-    return proxyToSet;
 }
-exports.getProxy = getProxy;
+exports.configureProxy = configureProxy;
 
 
 /***/ }),
