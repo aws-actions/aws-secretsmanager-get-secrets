@@ -24677,10 +24677,9 @@ exports.cleanVariable = cleanVariable;
  * @param proxyServer: proxy server
  */
 function configureProxy(proxyServer, secretManagerClientConfig) {
-    console.log(proxyServer);
     const proxyFromEnv = process.env.HTTP_PROXY || process.env.http_proxy || "";
+    let proxyToSet;
     if (proxyFromEnv || proxyServer) {
-        let proxyToSet;
         if (proxyServer) {
             console.log(`Setting proxy from actions input: ${proxyServer}`);
             proxyToSet = proxyServer;
@@ -24695,6 +24694,7 @@ function configureProxy(proxyServer, secretManagerClientConfig) {
             httpsAgent: agent
         });
     }
+    return proxyToSet;
 }
 exports.configureProxy = configureProxy;
 

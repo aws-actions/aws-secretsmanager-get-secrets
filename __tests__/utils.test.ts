@@ -8,8 +8,6 @@ import {
 	buildSecretsList, configureProxy, extractAliasAndSecretIdFromInput, getSecretsWithPrefix, getSecretValue, injectSecret, isJSONString, isSecretArn, transformToValidEnvName
 } from "../src/utils";
 
-import { NodeHttpHandler } from '@aws-sdk/node-http-handler';
-import { HttpsProxyAgent } from 'hpagent';
 import { CLEANUP_NAME, LIST_SECRETS_MAX_RESULTS } from "../src/constants";
 
 const TEST_NAME = 'test/secret';
@@ -391,18 +389,34 @@ describe('Test secret parsing and handling', () => {
 		expect(isJSONString('{ "a": "yes", "options": { "opt_a": "yes", "opt_b": "no"} }')).toBe(true)
 	});
 
-	test('Test proxy input is added', () => {
-		let config = {}
-		const agent = new HttpsProxyAgent({ proxy: "http://proxy.com:31200" });
-		const expectedConfig = {
-			requestHandler: new NodeHttpHandler({
-				httpAgent: agent,
-				httpsAgent: agent
-			})
-		}
-		configureProxy("http://proxy.com:31200", config);
-		config
-		expect(config).toEqual(expectedConfig);
+});
+
+describe('Test proxy configuration', () => {
+	beforeEach(() => {
+		smMockClient.reset();
+		jest.clearAllMocks();
 	});
 
+	afterEach(() => {
+		process.env = {};
+	});
+
+	test('Test proxy is added as input', () => {
+
+		let config = {};
+		expect(configureProxy("http://proxy.com:31200", config)).toEqual("http://proxy.com:31200");
+	});
+
+	test('Test proxy is added as env', () => {
+		process.env = { HTTP_PROXY: "http://proxy.com:31210" }
+		let config = {};
+		expect(configureProxy("", config)).toEqual("http://proxy.com:31210");
+		process.env = { http_proxy: "http://proxy.com:31220" }
+		expect(configureProxy("", config)).toEqual("http://proxy.com:31220");
+	});
+
+	test('Test no proxy is added', () => {
+		let config = {};
+		expect(configureProxy("", config)).toBeFalsy();
+	});
 });
