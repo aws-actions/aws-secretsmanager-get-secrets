@@ -250,6 +250,7 @@ exports.cleanVariable = cleanVariable;
  * @param proxyServer: proxy server
  */
 function configureProxy(proxyServer, secretManagerClientConfig) {
+    console.log(proxyServer);
     const proxyFromEnv = process.env.HTTP_PROXY || process.env.http_proxy || "";
     if (proxyFromEnv || proxyServer) {
         let proxyToSet;

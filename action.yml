@@ -1,21 +1,22 @@
-name: 'AWS Secrets Manager GitHub Action'
-author: 'AWS Secrets Manager'
-description: 'GitHub action for retrieving secrets from AWS Secrets Manager'
+name: "AWS Secrets Manager GitHub Action"
+author: "AWS Secrets Manager"
+description: "GitHub action for retrieving secrets from AWS Secrets Manager"
 branding:
-  icon: 'cloud'
-  color: 'orange'
+  icon: "cloud"
+  color: "orange"
 inputs:
   secret-ids:
-    description: 'One or more secret names, secret ARNs, or secret prefixes to retrieve'
+    description: "One or more secret names, secret ARNs, or secret prefixes to retrieve"
     required: true
   parse-json-secrets:
-    description: '(Optional) If true, JSON secrets will be deserialized, creating a secret environment variable for each key-value pair.'
+    description: "(Optional) If true, JSON secrets will be deserialized, creating a secret environment variable for each key-value pair."
     required: false
-    default: 'false'
+    default: "false"
   http-proxy:
-    description: 'Proxy to use for the AWS SDK agent'
+    description: "Proxy to use for the AWS SDK agent"
     required: false
+    default: ""
 runs:
-  using: 'node16'
-  main: 'dist/index.js'
-  post: 'dist/cleanup/index.js'
+  using: "node16"
+  main: "dist/index.js"
+  post: "dist/cleanup/index.js"

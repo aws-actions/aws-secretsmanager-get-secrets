@@ -236,6 +236,7 @@ export function cleanVariable(variableName: string) {
  */
 export function configureProxy(proxyServer: string, secretManagerClientConfig: any) {
 
+	console.log(proxyServer);
 	const proxyFromEnv: string = process.env.HTTP_PROXY || process.env.http_proxy || "";
 
 	if (proxyFromEnv || proxyServer) {

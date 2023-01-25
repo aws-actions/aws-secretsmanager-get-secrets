@@ -80,7 +80,7 @@ describe('Test secret value retrieval', () => {
 	});
 
 	test('Throws an error if unable to retrieve the secret', async () => {
-		const error = new ResourceNotFoundException({ $metadata: {} as any, Message: "Error" });
+		const error = new ResourceNotFoundException({ $metadata: {} as any, message: "Error" });
 		smMockClient.on(GetSecretValueCommand).rejects(error);
 		await expect(getSecretValue(smClient, TEST_NAME)).rejects.toThrow(error);
 	});
