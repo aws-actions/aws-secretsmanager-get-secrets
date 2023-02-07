@@ -19167,10 +19167,8 @@ function run() {
                 const isArn = (0, utils_1.isSecretArn)(secretId);
                 try {
                     const secretValueResponse = yield (0, utils_1.getSecretValue)(client, secretId);
-                    if (!secretAlias) {
-                        secretAlias = isArn ? secretValueResponse.name : secretId;
-                    }
-                    const injectedSecrets = (0, utils_1.injectSecret)(secretAlias, secretValueResponse.secretValue, parseJsonSecrets);
+                    const secretName = isArn ? secretValueResponse.name : secretId;
+                    const injectedSecrets = (0, utils_1.injectSecret)(secretName, secretAlias, secretValueResponse.secretValue, parseJsonSecrets);
                     secretsToCleanup = [...secretsToCleanup, ...injectedSecrets];
                 }
                 catch (err) {
@@ -19345,11 +19343,12 @@ exports.getSecretValue = getSecretValue;
  * Transforms and injects secret as a masked environmental variable
  *
  * @param secretName: Name of the secret
+ * @param secretAlias: Alias of the secret. If undefined, defaults to the `secretName`.
  * @param secretValue: Value to set for secret
  * @param parseJsonSecrets: Indicates whether to deserialize JSON secrets
  * @param tempEnvName: If parsing JSON secrets, contains the current name for the env variable
  */
-function injectSecret(secretName, secretValue, parseJsonSecrets, tempEnvName) {
+function injectSecret(secretName, secretAlias, secretValue, parseJsonSecrets, tempEnvName) {
     let secretsToCleanup = [];
     if (parseJsonSecrets && isJSONString(secretValue)) {
         // Recursively parses json secrets
@@ -19357,12 +19356,14 @@ function injectSecret(secretName, secretValue, parseJsonSecrets, tempEnvName) {
         for (const k in secretMap) {
             const keyValue = typeof secretMap[k] === 'string' ? secretMap[k] : JSON.stringify(secretMap[k]);
             // Append the current key to the name of the env variable
-            const newEnvName = `${tempEnvName || transformToValidEnvName(secretName)}_${transformToValidEnvName(k)}`;
-            secretsToCleanup = [...secretsToCleanup, ...injectSecret(secretName, keyValue, parseJsonSecrets, newEnvName)];
+            const prefix = tempEnvName || (secretAlias && transformToValidEnvName(secretAlias)) || (secretAlias === undefined && transformToValidEnvName(secretName));
+            const envName = transformToValidEnvName(k);
+            const fullEnvName = prefix ? `${prefix}_${envName}` : envName;
+            secretsToCleanup = [...secretsToCleanup, ...injectSecret(secretName, secretAlias, keyValue, parseJsonSecrets, fullEnvName)];
         }
     }
     else {
-        const envName = tempEnvName ? transformToValidEnvName(tempEnvName) : transformToValidEnvName(secretName);
+        const envName = tempEnvName ? transformToValidEnvName(tempEnvName) : transformToValidEnvName(secretAlias || secretName);
         // Fail the action if this variable name is already in use, or is our cleanup name
         if (process.env[envName] || envName === constants_1.CLEANUP_NAME) {
             throw new Error(`The environment name '${envName}' is already in use. Please use an alias to ensure that each secret has a unique environment name`);
@@ -19433,7 +19434,7 @@ function extractAliasAndSecretIdFromInput(input) {
         return [alias, secretId];
     }
     // No alias
-    return ['', input.trim()];
+    return [undefined, input.trim()];
 }
 exports.extractAliasAndSecretIdFromInput = extractAliasAndSecretIdFromInput;
 /*

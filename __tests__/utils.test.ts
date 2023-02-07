@@ -285,32 +285,38 @@ describe('Test secret parsing and handling', () => {
     * Test: injectSecret()
     */
     test('Stores a simple secret', () => {
-        injectSecret(TEST_NAME, TEST_VALUE, false);
+        injectSecret(TEST_NAME, undefined, TEST_VALUE, false);
         expect(core.exportVariable).toHaveBeenCalledTimes(1);
         expect(core.exportVariable).toHaveBeenCalledWith(TEST_ENV_NAME, TEST_VALUE);
     });
 
+    test('Stores a simple secret with alias', () => {
+        injectSecret(TEST_NAME, 'ALIAS_1', TEST_VALUE, false);
+        expect(core.exportVariable).toHaveBeenCalledTimes(1);
+        expect(core.exportVariable).toHaveBeenCalledWith('ALIAS_1', TEST_VALUE);
+    });
+
     test('Stores a JSON secret as string when parseJson is false', () => {
-        injectSecret(TEST_NAME, SIMPLE_JSON_SECRET, false);
+        injectSecret(TEST_NAME, undefined, SIMPLE_JSON_SECRET, false);
         expect(core.exportVariable).toHaveBeenCalledTimes(1);
         expect(core.exportVariable).toHaveBeenCalledWith(TEST_ENV_NAME, SIMPLE_JSON_SECRET);
     });
 
     test('Throws an error if reserved name is used', () => {
         expect(() => {
-            injectSecret(CLEANUP_NAME, TEST_VALUE, false);
+            injectSecret(CLEANUP_NAME, undefined, TEST_VALUE, false);
         }).toThrow();
     });
 
     test('Stores a variable for each JSON key value when parseJson is true', () => {
-        injectSecret(TEST_NAME, SIMPLE_JSON_SECRET, true);
+        injectSecret(TEST_NAME, undefined, SIMPLE_JSON_SECRET, true);
         expect(core.exportVariable).toHaveBeenCalledTimes(2);
         expect(core.exportVariable).toHaveBeenCalledWith('TEST_SECRET_API_KEY', 'testkey');
         expect(core.exportVariable).toHaveBeenCalledWith('TEST_SECRET_USER', 'testuser');
     });
 
     test('Stores a variable for nested JSON key values when parseJson is true', () => {
-        injectSecret(TEST_NAME, NESTED_JSON_SECRET, true);
+        injectSecret(TEST_NAME, undefined, NESTED_JSON_SECRET, true);
         expect(core.setSecret).toHaveBeenCalledTimes(7);
         expect(core.exportVariable).toHaveBeenCalledWith('TEST_SECRET_HOST', '127.0.0.1');
         expect(core.exportVariable).toHaveBeenCalledWith('TEST_SECRET_PORT', '3600');
@@ -330,9 +336,14 @@ describe('Test secret parsing and handling', () => {
         expect(extractAliasAndSecretIdFromInput(`ARN_ALIAS,${VALID_ARN_1}`)).toEqual(['ARN_ALIAS', VALID_ARN_1]);
     });
 
-    test('Returns blank for alias if none is provided', () => {
-        expect(extractAliasAndSecretIdFromInput("test/secret")).toEqual(['', 'test/secret']);
-        expect(extractAliasAndSecretIdFromInput(VALID_ARN_1)).toEqual(['', VALID_ARN_1]);
+    test('Returns undefined for alias if none is provided', () => {
+        expect(extractAliasAndSecretIdFromInput("test/secret")).toEqual([undefined, 'test/secret']);
+        expect(extractAliasAndSecretIdFromInput(VALID_ARN_1)).toEqual([undefined, VALID_ARN_1]);
+    });
+
+    test('Returns blank for alias if empty string is provided', () => {
+        expect(extractAliasAndSecretIdFromInput(",test/secret")).toEqual(['', 'test/secret']);
+        expect(extractAliasAndSecretIdFromInput(`,${VALID_ARN_1}`)).toEqual(['', VALID_ARN_1]);
     });
 
     test('Throws an error if the provided alias cannot be used as the environment name', () => {

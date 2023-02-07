@@ -102,6 +102,54 @@ describe('Test main action', () => {
         expect(core.exportVariable).toHaveBeenCalledWith(CLEANUP_NAME, JSON.stringify(['TEST_ONE_USER', 'TEST_ONE_PASSWORD', 'TEST_TWO_USER', 'TEST_TWO_PASSWORD', ENV_NAME_3, ENV_NAME_4]));
     });
 
+    describe('Support prefixing JSON', () => {
+        test('Allow custom prefix', async () => {
+            const secretId = 'test/one';
+            const secretString: string = JSON.stringify({
+                "key1": "value1",
+                "key2": "value2"
+            });
+
+            jest.spyOn(core, 'getMultilineInput').mockReturnValueOnce([`CUSTOM,${secretId}`]);
+            jest.spyOn(core, 'getBooleanInput').mockReturnValueOnce(true);
+
+            smMockClient
+                .on(GetSecretValueCommand, { SecretId: secretId })
+                .resolves({ Name: secretId, SecretString: secretString });
+
+            await run();
+
+            expect(core.exportVariable).toHaveBeenCalledTimes(3);
+
+            expect(core.exportVariable).toHaveBeenCalledWith('CUSTOM_KEY1', 'value1');
+            expect(core.exportVariable).toHaveBeenCalledWith('CUSTOM_KEY2', 'value2');
+            expect(core.exportVariable).toHaveBeenCalledWith(CLEANUP_NAME, JSON.stringify(['CUSTOM_KEY1', 'CUSTOM_KEY2']));
+        })
+
+        test('Allow for no prefix', async () => {
+            const secretId = 'test/one';
+            const secretString: string = JSON.stringify({
+                "key1": "value1",
+                "key2": "value2"
+            });
+
+            jest.spyOn(core, 'getMultilineInput').mockReturnValueOnce([`,${secretId}`]);
+            jest.spyOn(core, 'getBooleanInput').mockReturnValueOnce(true);
+
+            smMockClient
+                .on(GetSecretValueCommand, { SecretId: secretId })
+                .resolves({ Name: secretId, SecretString: secretString });
+
+            await run();
+
+            // expect(core.exportVariable).toHaveBeenCalledTimes(3);
+
+            expect(core.exportVariable).toHaveBeenCalledWith('KEY1', 'value1');
+            expect(core.exportVariable).toHaveBeenCalledWith('KEY2', 'value2');
+            expect(core.exportVariable).toHaveBeenCalledWith(CLEANUP_NAME, JSON.stringify(['KEY1', 'KEY2']));
+        })
+    })
+
     test('Fails the action when an error occurs in Secrets Manager', async () => {
         smMockClient.onAnyCommand().resolves({});
 

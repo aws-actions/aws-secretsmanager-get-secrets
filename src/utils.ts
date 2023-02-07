@@ -124,11 +124,12 @@ export async function getSecretValue(client: SecretsManagerClient, secretId: str
  * Transforms and injects secret as a masked environmental variable
  *
  * @param secretName: Name of the secret
+ * @param secretAlias: Alias of the secret. If undefined, defaults to the `secretName`.
  * @param secretValue: Value to set for secret
  * @param parseJsonSecrets: Indicates whether to deserialize JSON secrets
  * @param tempEnvName: If parsing JSON secrets, contains the current name for the env variable
  */
-export function injectSecret(secretName: string, secretValue: string, parseJsonSecrets: boolean, tempEnvName?: string): string[] {
+export function injectSecret(secretName: string, secretAlias: string | undefined, secretValue: string, parseJsonSecrets: boolean, tempEnvName?: string): string[] {
     let secretsToCleanup = [] as string[];
     if(parseJsonSecrets && isJSONString(secretValue)){
         // Recursively parses json secrets
@@ -138,11 +139,13 @@ export function injectSecret(secretName: string, secretValue: string, parseJsonS
             const keyValue = typeof secretMap[k] === 'string' ? secretMap[k] as string : JSON.stringify(secretMap[k]);
 
             // Append the current key to the name of the env variable
-            const newEnvName = `${tempEnvName || transformToValidEnvName(secretName)}_${transformToValidEnvName(k)}`;
-            secretsToCleanup = [...secretsToCleanup, ...injectSecret(secretName, keyValue, parseJsonSecrets, newEnvName)];
+            const prefix = tempEnvName || (secretAlias && transformToValidEnvName(secretAlias)) || (secretAlias === undefined && transformToValidEnvName(secretName));
+            const envName = transformToValidEnvName(k);
+            const fullEnvName: string = prefix ? `${prefix}_${envName}` : envName;
+            secretsToCleanup = [...secretsToCleanup, ...injectSecret(secretName, secretAlias, keyValue, parseJsonSecrets, fullEnvName)];
         }
     } else {
-        const envName = tempEnvName ? transformToValidEnvName(tempEnvName) : transformToValidEnvName(secretName);
+        const envName = tempEnvName ? transformToValidEnvName(tempEnvName) : transformToValidEnvName(secretAlias || secretName);
 
         // Fail the action if this variable name is already in use, or is our cleanup name
         if (process.env[envName] || envName === CLEANUP_NAME){
@@ -204,7 +207,7 @@ export function isSecretArn(secretId: string): boolean {
 /*
  * Separates a secret alias from the secret name/arn, if one was provided
  */
-export function extractAliasAndSecretIdFromInput(input: string): [string, string] {
+export function extractAliasAndSecretIdFromInput(input: string): [string | undefined, string] {
     const parsedInput = input.split(',');
     if (parsedInput.length > 1){
         const alias = parsedInput[0].trim();
@@ -221,7 +224,7 @@ export function extractAliasAndSecretIdFromInput(input: string): [string, string
     }
 
     // No alias
-    return [ '', input.trim() ];
+    return [ undefined, input.trim() ];
 }
 
 /*
