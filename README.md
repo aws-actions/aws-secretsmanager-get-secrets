@@ -137,6 +137,51 @@ TEST_SECRET_API_KEY: "key"
 TEST_SECRET_CONFIG_ACTIVE: "true"
 ```
 
+
+**Example 4: Parsed JSON in secret with custom prefix**
+
+The following example creates environment variables by parsing the JSON in the secret and prefixes them based on provided prefix.
+​
+```
+- name: Get Secrets by Name and by ARN
+  uses: aws-actions/aws-secretsmanager-get-secrets@v1
+  with:
+    secret-ids: |
+      CUSTOM,test/secret
+    parse-json-secrets: true
+```
+
+The secret `test/secret` has the following secret value.
+​
+```
+{
+  "api_user": "user",
+  "api_key": "key",
+  "config": {
+    "active": "true"
+  }
+}
+```
+
+Environment variables created:
+​
+```
+CUSTOM_API_USER: "user"
+CUSTOM_API_KEY: "key"
+CUSTOM_CONFIG_ACTIVE: "true"
+```
+
+> **Pro-tip**: It's possible remove prefixes by providing an "empty" prefix:
+>
+> ```
+> - name: Get Secrets by Name and by ARN
+>   uses: aws-actions/aws-secretsmanager-get-secrets@v1
+>   with:
+>     secret-ids: |
+>       ,test/secret
+>     parse-json-secrets: true
+> ```
+
 ## Security
 
 See [CONTRIBUTING](CONTRIBUTING.md#security-issue-notifications) for more information.
