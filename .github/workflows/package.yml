@@ -3,6 +3,9 @@ on:
     branches:
       - main
 
+env:
+  GH_TOKEN: ${{ github.token }}
+
 name: Package
 
 jobs:
