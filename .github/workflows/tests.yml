@@ -19,4 +19,4 @@ jobs:
           npm ci
           npm run test
       - name: Codecov
-        uses: codecov/codecov-action@v3.1.1
+        uses: codecov/codecov-action@v3.1.2
