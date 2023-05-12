@@ -9,7 +9,7 @@ inputs:
     description: 'One or more secret names, secret ARNs, or secret prefixes to retrieve'
     required: true
   parse-json-secrets:
-    description: '(Optional) If true, JSON secrets will be deserialized, creating a secret environment variable for each key-value pair.'
+    description: '(Optional) If true, JSON secrets will be deserialized, creating a secret output for each key-value pair.'
     required: false
     default: 'false'
 runs:

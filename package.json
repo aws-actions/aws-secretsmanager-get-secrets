@@ -7,7 +7,7 @@
     "test": "npm run lint && jest --coverage --verbose",
     "lint": "eslint src/**.ts",
     "fix": "eslint src/** --fix",
-    "build": "tsc && ncc build ./src/index.ts --source-map --license licenses.txt && ncc build ./src/cleanup.ts -o dist/cleanup"
+    "build": "tsc && ncc build ./src/index.ts --source-map --license licenses.txt"
   },
   "repository": {
     "type": "git",
