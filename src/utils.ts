@@ -132,10 +132,10 @@ export function injectSecret(secretName: string, secretValue: string, parseJsonS
     let secretsToCleanup = [] as string[];
     if(parseJsonSecrets && isJSONString(secretValue)){
         // Recursively parses json secrets
-        const secretMap = JSON.parse(secretValue) as Record<string, any>;
+        const secretMap = JSON.parse(secretValue) as Record<string, string | object>;
 
         for (const k in secretMap) {
-            const keyValue = typeof secretMap[k] === 'string' ? secretMap[k] : JSON.stringify(secretMap[k]);
+            const keyValue = typeof secretMap[k] === 'string' ? secretMap[k] as string : JSON.stringify(secretMap[k]);
 
             // Append the current key to the name of the env variable
             const newEnvName = `${tempEnvName || transformToValidEnvName(secretName)}_${transformToValidEnvName(k)}`;

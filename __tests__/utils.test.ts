@@ -31,9 +31,6 @@ const TEST_NAME_1 = 'test/secret1';
 const VALID_ARN_2 = 'arn:aws:secretsmanager:ap-south-1:123456789000:secret:test2-aBcdef';
 const TEST_NAME_2 = 'test/secret2';
 
-const NOT_MATCHING_ARN_3 = 'arn:aws:secretsmanager:us-east-1:123456789000:secret:alternativeSecret-aBcdef';
-const NOT_MATCHING_TEST = 'alternativeSecret';
-
 const INVALID_ARN = 'aws:secretsmanager:us-east-1:123456789000:secret:test3-aBcdef';
 
 jest.mock('@actions/core');
@@ -87,7 +84,7 @@ describe('Test secret value retrieval', () => {
     });
 
     test('Throws an error if unable to retrieve the secret', async () => {
-        const error = new ResourceNotFoundException({$metadata: {} as any, Message: 'Error'});
+        const error = new ResourceNotFoundException({$metadata: {}, message: 'Error'});
         smMockClient.on(GetSecretValueCommand).rejects(error);
         await expect(getSecretValue(smClient, TEST_NAME)).rejects.toThrow(error);
     });
@@ -177,7 +174,7 @@ describe('Test secret value retrieval', () => {
     });
 
     test('Throws an error if a prefix filter returns too many results', async () => {
-        let input = ["too/many/matches/*"];
+        const input = ["too/many/matches/*"];
         const expectedParams = {
             Filters: [
                 {
@@ -210,7 +207,7 @@ describe('Test secret value retrieval', () => {
     });
 
     test('Throws an error if a prefix filter has no results', async () => {
-        let input = ["no/matches/*"];
+        const input = ["no/matches/*"];
         const expectedParams = {
             Filters: [
                 {
@@ -233,7 +230,7 @@ describe('Test secret value retrieval', () => {
     });
 
     test('Throws an error if a prefix filter with an alias returns more than 1 result', async () => {
-        let input = ["SECRET_ALIAS,test/*"];
+        const input = ["SECRET_ALIAS,test/*"];
         const expectedParams = {
             Filters: [
                 {
