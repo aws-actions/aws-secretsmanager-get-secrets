@@ -140,7 +140,6 @@ const file_command_1 = __nccwpck_require__(717);
 const utils_1 = __nccwpck_require__(5278);
 const os = __importStar(__nccwpck_require__(2037));
 const path = __importStar(__nccwpck_require__(1017));
-const uuid_1 = __nccwpck_require__(5840);
 const oidc_utils_1 = __nccwpck_require__(8041);
 /**
  * The code to exit an action
@@ -170,20 +169,9 @@ function exportVariable(name, val) {
     process.env[name] = convertedVal;
     const filePath = process.env['GITHUB_ENV'] || '';
     if (filePath) {
-        const delimiter = `ghadelimiter_${uuid_1.v4()}`;
-        // These should realistically never happen, but just in case someone finds a way to exploit uuid generation let's not allow keys or values that contain the delimiter.
-        if (name.includes(delimiter)) {
-            throw new Error(`Unexpected input: name should not contain the delimiter "${delimiter}"`);
-        }
-        if (convertedVal.includes(delimiter)) {
-            throw new Error(`Unexpected input: value should not contain the delimiter "${delimiter}"`);
-        }
-        const commandValue = `${name}<<${delimiter}${os.EOL}${convertedVal}${os.EOL}${delimiter}`;
-        file_command_1.issueCommand('ENV', commandValue);
+        return file_command_1.issueFileCommand('ENV', file_command_1.prepareKeyValueMessage(name, val));
     }
-    else {
-        command_1.issueCommand('set-env', { name }, convertedVal);
-    }
+    command_1.issueCommand('set-env', { name }, convertedVal);
 }
 exports.exportVariable = exportVariable;
 /**
@@ -201,7 +189,7 @@ exports.setSecret = setSecret;
 function addPath(inputPath) {
     const filePath = process.env['GITHUB_PATH'] || '';
     if (filePath) {
-        file_command_1.issueCommand('PATH', inputPath);
+        file_command_1.issueFileCommand('PATH', inputPath);
     }
     else {
         command_1.issueCommand('add-path', {}, inputPath);
@@ -241,7 +229,10 @@ function getMultilineInput(name, options) {
     const inputs = getInput(name, options)
         .split('\n')
         .filter(x => x !== '');
-    return inputs;
+    if (options && options.trimWhitespace === false) {
+        return inputs;
+    }
+    return inputs.map(input => input.trim());
 }
 exports.getMultilineInput = getMultilineInput;
 /**
@@ -274,8 +265,12 @@ exports.getBooleanInput = getBooleanInput;
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function setOutput(name, value) {
+    const filePath = process.env['GITHUB_OUTPUT'] || '';
+    if (filePath) {
+        return file_command_1.issueFileCommand('OUTPUT', file_command_1.prepareKeyValueMessage(name, value));
+    }
     process.stdout.write(os.EOL);
-    command_1.issueCommand('set-output', { name }, value);
+    command_1.issueCommand('set-output', { name }, utils_1.toCommandValue(value));
 }
 exports.setOutput = setOutput;
 /**
@@ -404,7 +399,11 @@ exports.group = group;
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function saveState(name, value) {
-    command_1.issueCommand('save-state', { name }, value);
+    const filePath = process.env['GITHUB_STATE'] || '';
+    if (filePath) {
+        return file_command_1.issueFileCommand('STATE', file_command_1.prepareKeyValueMessage(name, value));
+    }
+    command_1.issueCommand('save-state', { name }, utils_1.toCommandValue(value));
 }
 exports.saveState = saveState;
 /**
@@ -470,13 +469,14 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.issueCommand = void 0;
+exports.prepareKeyValueMessage = exports.issueFileCommand = void 0;
 // We use any as a valid input type
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const fs = __importStar(__nccwpck_require__(7147));
 const os = __importStar(__nccwpck_require__(2037));
+const uuid_1 = __nccwpck_require__(5840);
 const utils_1 = __nccwpck_require__(5278);
-function issueCommand(command, message) {
+function issueFileCommand(command, message) {
     const filePath = process.env[`GITHUB_${command}`];
     if (!filePath) {
         throw new Error(`Unable to find environment variable for file command ${command}`);
@@ -488,7 +488,22 @@ function issueCommand(command, message) {
         encoding: 'utf8'
     });
 }
-exports.issueCommand = issueCommand;
+exports.issueFileCommand = issueFileCommand;
+function prepareKeyValueMessage(key, value) {
+    const delimiter = `ghadelimiter_${uuid_1.v4()}`;
+    const convertedValue = utils_1.toCommandValue(value);
+    // These should realistically never happen, but just in case someone finds a
+    // way to exploit uuid generation let's not allow keys or values that contain
+    // the delimiter.
+    if (key.includes(delimiter)) {
+        throw new Error(`Unexpected input: name should not contain the delimiter "${delimiter}"`);
+    }
+    if (convertedValue.includes(delimiter)) {
+        throw new Error(`Unexpected input: value should not contain the delimiter "${delimiter}"`);
+    }
+    return `${key}<<${delimiter}${os.EOL}${convertedValue}${os.EOL}${delimiter}`;
+}
+exports.prepareKeyValueMessage = prepareKeyValueMessage;
 //# sourceMappingURL=file-command.js.map
 
 /***/ }),
@@ -19095,9 +19110,8 @@ exports["default"] = _default;
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.CLEANUP_NAME = exports.LIST_SECRETS_MAX_RESULTS = void 0;
+exports.LIST_SECRETS_MAX_RESULTS = void 0;
 exports.LIST_SECRETS_MAX_RESULTS = 100;
-exports.CLEANUP_NAME = 'SECRETS_LIST_CLEAN_UP';
 
 
 /***/ }),
@@ -19144,7 +19158,6 @@ exports.run = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 const client_secrets_manager_1 = __nccwpck_require__(9600);
 const utils_1 = __nccwpck_require__(1314);
-const constants_1 = __nccwpck_require__(9042);
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -19155,12 +19168,12 @@ function run() {
             // Get final list of secrets to request
             core.info('Building secrets list...');
             const secretIds = yield (0, utils_1.buildSecretsList)(client, secretConfigInputs);
-            // Keep track of secret names that will need to be cleaned from the environment
-            let secretsToCleanup = [];
-            core.info('Your secret names may be transformed in order to be valid environment variables (see README). Enable Debug logging in order to view the new environment names.');
+            // Keep track of secrets outputted already, so none are accidentally overwritten
+            const injectedSecretIds = new Set;
+            core.info('Your secret names may be transformed in order to be valid output variables (see README). Enable Debug logging in order to view the new variable names.');
             // Get and inject secret values
             for (let secretId of secretIds) {
-                //  Optionally let user set an alias, i.e. `ENV_NAME,secret_name`
+                //  Optionally let user set an alias, i.e. `VAR_NAME,secret_name`
                 let secretAlias = '';
                 [secretAlias, secretId] = (0, utils_1.extractAliasAndSecretIdFromInput)(secretId);
                 // Retrieves the secret name also, if the value is an ARN
@@ -19170,16 +19183,13 @@ function run() {
                     if (!secretAlias) {
                         secretAlias = isArn ? secretValueResponse.name : secretId;
                     }
-                    const injectedSecrets = (0, utils_1.injectSecret)(secretAlias, secretValueResponse.secretValue, parseJsonSecrets);
-                    secretsToCleanup = [...secretsToCleanup, ...injectedSecrets];
+                    (0, utils_1.injectSecret)(secretAlias, secretValueResponse.secretValue, parseJsonSecrets, injectedSecretIds);
                 }
                 catch (err) {
                     // Fail action for any error
                     core.setFailed(`Failed to fetch secret: '${secretId}'. Error: ${err}.`);
                 }
             }
-            // Export the names of variables to clean up after completion
-            core.exportVariable(constants_1.CLEANUP_NAME, JSON.stringify(secretsToCleanup));
             core.info("Completed adding secrets.");
         }
         catch (error) {
@@ -19232,7 +19242,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.cleanVariable = exports.extractAliasAndSecretIdFromInput = exports.isSecretArn = exports.transformToValidEnvName = exports.isJSONString = exports.injectSecret = exports.getSecretValue = exports.getSecretsWithPrefix = exports.buildSecretsList = void 0;
+exports.extractAliasAndSecretIdFromInput = exports.isSecretArn = exports.transformToValidVarName = exports.isJSONString = exports.injectSecret = exports.getSecretValue = exports.getSecretsWithPrefix = exports.buildSecretsList = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 const client_secrets_manager_1 = __nccwpck_require__(9600);
 const constants_1 = __nccwpck_require__(9042);
@@ -19328,7 +19338,7 @@ function getSecretValue(client, secretId) {
             secretValue = data.SecretString;
         }
         else if (data.SecretBinary) {
-            // Only string and JSON string values are supported in Github env
+            // Only string and JSON string values are supported in Github output variables
             secretValue = Buffer.from(data.SecretBinary).toString('ascii');
         }
         if (!(data.Name)) {
@@ -19342,39 +19352,36 @@ function getSecretValue(client, secretId) {
 }
 exports.getSecretValue = getSecretValue;
 /**
- * Transforms and injects secret as a masked environmental variable
+ * Transforms and returns secret as a masked output value
  *
  * @param secretName: Name of the secret
  * @param secretValue: Value to set for secret
  * @param parseJsonSecrets: Indicates whether to deserialize JSON secrets
- * @param tempEnvName: If parsing JSON secrets, contains the current name for the env variable
+ * @param tempVarName: If parsing JSON secrets, contains the current name for the output variable
  */
-function injectSecret(secretName, secretValue, parseJsonSecrets, tempEnvName) {
-    let secretsToCleanup = [];
+function injectSecret(secretName, secretValue, parseJsonSecrets, injectedSecretIds, tempVarName) {
     if (parseJsonSecrets && isJSONString(secretValue)) {
         // Recursively parses json secrets
         const secretMap = JSON.parse(secretValue);
         for (const k in secretMap) {
             const keyValue = typeof secretMap[k] === 'string' ? secretMap[k] : JSON.stringify(secretMap[k]);
-            // Append the current key to the name of the env variable
-            const newEnvName = `${tempEnvName || transformToValidEnvName(secretName)}_${transformToValidEnvName(k)}`;
-            secretsToCleanup = [...secretsToCleanup, ...injectSecret(secretName, keyValue, parseJsonSecrets, newEnvName)];
+            // Append the current key to the name of the variable
+            const newVarName = `${tempVarName || transformToValidVarName(secretName)}_${transformToValidVarName(k)}`;
+            injectSecret(secretName, keyValue, parseJsonSecrets, injectedSecretIds, newVarName);
         }
     }
     else {
-        const envName = tempEnvName ? transformToValidEnvName(tempEnvName) : transformToValidEnvName(secretName);
-        // Fail the action if this variable name is already in use, or is our cleanup name
-        if (process.env[envName] || envName === constants_1.CLEANUP_NAME) {
-            throw new Error(`The environment name '${envName}' is already in use. Please use an alias to ensure that each secret has a unique environment name`);
+        const varName = tempVarName ? transformToValidVarName(tempVarName) : transformToValidVarName(secretName);
+        if (injectedSecretIds.has(varName)) {
+            throw new Error(`The output variable name '${varName}' is already in use. Please use an alias to ensure that each secret has a unique output variable name`);
         }
         // Inject a single secret
         core.setSecret(secretValue);
         // Export variable
-        core.debug(`Injecting secret ${secretName} as environment variable '${envName}'.`);
-        core.exportVariable(envName, secretValue);
-        secretsToCleanup.push(envName);
+        core.debug(`Setting secret ${secretName} as output '${varName}'.`);
+        injectedSecretIds.add(varName);
+        core.setOutput(varName, secretValue);
     }
-    return secretsToCleanup;
 }
 exports.injectSecret = injectSecret;
 /*
@@ -19393,18 +19400,18 @@ function isJSONString(secretValue) {
 }
 exports.isJSONString = isJSONString;
 /*
- * Transforms the secret name into a valid environmental variable name
+ * Transforms the secret name into a valid variable name
  * It should consist of only upper case letters, digits, and underscores and cannot begin with a number
  */
-function transformToValidEnvName(secretName) {
+function transformToValidVarName(secretName) {
     // Leading digits are invalid
     if (secretName.match(/^[0-9]/)) {
         secretName = '_'.concat(secretName);
     }
     // Remove invalid characters
-    return secretName.replace(/[^a-zA-Z0-9_]/g, '_').toUpperCase();
+    return secretName.replace(/[^a-zA-Z0-9_]/g, '_');
 }
-exports.transformToValidEnvName = transformToValidEnvName;
+exports.transformToValidVarName = transformToValidVarName;
 /**
  * Checks if the given secretId is an ARN
  *
@@ -19424,10 +19431,10 @@ function extractAliasAndSecretIdFromInput(input) {
     if (parsedInput.length > 1) {
         const alias = parsedInput[0].trim();
         const secretId = parsedInput[1].trim();
-        // Validate that the alias is valid environment name
-        const validateEnvName = transformToValidEnvName(alias);
-        if (alias !== validateEnvName) {
-            throw new Error(`The alias '${alias}' is not a valid environment name. Please verify that it has uppercase letters, numbers, and underscore only.`);
+        // Validate that the alias is valid output variable name
+        const validateVarName = transformToValidVarName(alias);
+        if (alias !== validateVarName) {
+            throw new Error(`The alias '${alias}' is not a valid output variable name. Please verify that it has letters, numbers, and underscore only.`);
         }
         // Return [alias, id]
         return [alias, secretId];
@@ -19436,14 +19443,6 @@ function extractAliasAndSecretIdFromInput(input) {
     return ['', input.trim()];
 }
 exports.extractAliasAndSecretIdFromInput = extractAliasAndSecretIdFromInput;
-/*
- * Cleans up an environment variable
- */
-function cleanVariable(variableName) {
-    core.exportVariable(variableName, '');
-    delete process.env[variableName];
-}
-exports.cleanVariable = cleanVariable;
 
 
 /***/ }),

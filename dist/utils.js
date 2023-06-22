@@ -32,7 +32,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.cleanVariable = exports.extractAliasAndSecretIdFromInput = exports.isSecretArn = exports.transformToValidEnvName = exports.isJSONString = exports.injectSecret = exports.getSecretValue = exports.getSecretsWithPrefix = exports.buildSecretsList = void 0;
+exports.extractAliasAndSecretIdFromInput = exports.isSecretArn = exports.transformToValidVarName = exports.isJSONString = exports.injectSecret = exports.getSecretValue = exports.getSecretsWithPrefix = exports.buildSecretsList = void 0;
 const core = __importStar(require("@actions/core"));
 const client_secrets_manager_1 = require("@aws-sdk/client-secrets-manager");
 const constants_1 = require("./constants");
@@ -128,7 +128,7 @@ function getSecretValue(client, secretId) {
             secretValue = data.SecretString;
         }
         else if (data.SecretBinary) {
-            // Only string and JSON string values are supported in Github env
+            // Only string and JSON string values are supported in Github output variables
             secretValue = Buffer.from(data.SecretBinary).toString('ascii');
         }
         if (!(data.Name)) {
@@ -142,39 +142,36 @@ function getSecretValue(client, secretId) {
 }
 exports.getSecretValue = getSecretValue;
 /**
- * Transforms and injects secret as a masked environmental variable
+ * Transforms and returns secret as a masked output value
  *
  * @param secretName: Name of the secret
  * @param secretValue: Value to set for secret
  * @param parseJsonSecrets: Indicates whether to deserialize JSON secrets
- * @param tempEnvName: If parsing JSON secrets, contains the current name for the env variable
+ * @param tempVarName: If parsing JSON secrets, contains the current name for the output variable
  */
-function injectSecret(secretName, secretValue, parseJsonSecrets, tempEnvName) {
-    let secretsToCleanup = [];
+function injectSecret(secretName, secretValue, parseJsonSecrets, injectedSecretIds, tempVarName) {
     if (parseJsonSecrets && isJSONString(secretValue)) {
         // Recursively parses json secrets
         const secretMap = JSON.parse(secretValue);
         for (const k in secretMap) {
             const keyValue = typeof secretMap[k] === 'string' ? secretMap[k] : JSON.stringify(secretMap[k]);
-            // Append the current key to the name of the env variable
-            const newEnvName = `${tempEnvName || transformToValidEnvName(secretName)}_${transformToValidEnvName(k)}`;
-            secretsToCleanup = [...secretsToCleanup, ...injectSecret(secretName, keyValue, parseJsonSecrets, newEnvName)];
+            // Append the current key to the name of the variable
+            const newVarName = `${tempVarName || transformToValidVarName(secretName)}_${transformToValidVarName(k)}`;
+            injectSecret(secretName, keyValue, parseJsonSecrets, injectedSecretIds, newVarName);
         }
     }
     else {
-        const envName = tempEnvName ? transformToValidEnvName(tempEnvName) : transformToValidEnvName(secretName);
-        // Fail the action if this variable name is already in use, or is our cleanup name
-        if (process.env[envName] || envName === constants_1.CLEANUP_NAME) {
-            throw new Error(`The environment name '${envName}' is already in use. Please use an alias to ensure that each secret has a unique environment name`);
+        const varName = tempVarName ? transformToValidVarName(tempVarName) : transformToValidVarName(secretName);
+        if (injectedSecretIds.has(varName)) {
+            throw new Error(`The output variable name '${varName}' is already in use. Please use an alias to ensure that each secret has a unique output variable name`);
         }
         // Inject a single secret
         core.setSecret(secretValue);
         // Export variable
-        core.debug(`Injecting secret ${secretName} as environment variable '${envName}'.`);
-        core.exportVariable(envName, secretValue);
-        secretsToCleanup.push(envName);
+        core.debug(`Setting secret ${secretName} as output '${varName}'.`);
+        injectedSecretIds.add(varName);
+        core.setOutput(varName, secretValue);
     }
-    return secretsToCleanup;
 }
 exports.injectSecret = injectSecret;
 /*
@@ -193,18 +190,18 @@ function isJSONString(secretValue) {
 }
 exports.isJSONString = isJSONString;
 /*
- * Transforms the secret name into a valid environmental variable name
+ * Transforms the secret name into a valid variable name
  * It should consist of only upper case letters, digits, and underscores and cannot begin with a number
  */
-function transformToValidEnvName(secretName) {
+function transformToValidVarName(secretName) {
     // Leading digits are invalid
     if (secretName.match(/^[0-9]/)) {
         secretName = '_'.concat(secretName);
     }
     // Remove invalid characters
-    return secretName.replace(/[^a-zA-Z0-9_]/g, '_').toUpperCase();
+    return secretName.replace(/[^a-zA-Z0-9_]/g, '_');
 }
-exports.transformToValidEnvName = transformToValidEnvName;
+exports.transformToValidVarName = transformToValidVarName;
 /**
  * Checks if the given secretId is an ARN
  *
@@ -224,10 +221,10 @@ function extractAliasAndSecretIdFromInput(input) {
     if (parsedInput.length > 1) {
         const alias = parsedInput[0].trim();
         const secretId = parsedInput[1].trim();
-        // Validate that the alias is valid environment name
-        const validateEnvName = transformToValidEnvName(alias);
-        if (alias !== validateEnvName) {
-            throw new Error(`The alias '${alias}' is not a valid environment name. Please verify that it has uppercase letters, numbers, and underscore only.`);
+        // Validate that the alias is valid output variable name
+        const validateVarName = transformToValidVarName(alias);
+        if (alias !== validateVarName) {
+            throw new Error(`The alias '${alias}' is not a valid output variable name. Please verify that it has letters, numbers, and underscore only.`);
         }
         // Return [alias, id]
         return [alias, secretId];
@@ -236,11 +233,3 @@ function extractAliasAndSecretIdFromInput(input) {
     return ['', input.trim()];
 }
 exports.extractAliasAndSecretIdFromInput = extractAliasAndSecretIdFromInput;
-/*
- * Cleans up an environment variable
- */
-function cleanVariable(variableName) {
-    core.exportVariable(variableName, '');
-    delete process.env[variableName];
-}
-exports.cleanVariable = cleanVariable;

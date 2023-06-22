@@ -8,7 +8,6 @@ import {
     extractAliasAndSecretIdFromInput,
     SecretValueResponse
 } from "./utils";
-import { CLEANUP_NAME } from "./constants";
 
 export async function run(): Promise<void> {
     try {
@@ -21,14 +20,14 @@ export async function run(): Promise<void> {
         core.info('Building secrets list...');
         const secretIds: string[] = await buildSecretsList(client, secretConfigInputs);
 
-        // Keep track of secret names that will need to be cleaned from the environment
-        let secretsToCleanup = [] as string[];
+        // Keep track of secrets outputted already, so none are accidentally overwritten
+        const injectedSecretIds: Set<string> = new Set;
 
-        core.info('Your secret names may be transformed in order to be valid environment variables (see README). Enable Debug logging in order to view the new environment names.');
+        core.info('Your secret names may be transformed in order to be valid output variables (see README). Enable Debug logging in order to view the new variable names.');
 
         // Get and inject secret values
         for (let secretId of secretIds) {
-            //  Optionally let user set an alias, i.e. `ENV_NAME,secret_name`
+            //  Optionally let user set an alias, i.e. `VAR_NAME,secret_name`
             let secretAlias = '';
             [secretAlias, secretId] = extractAliasAndSecretIdFromInput(secretId);
 
@@ -41,16 +40,12 @@ export async function run(): Promise<void> {
                     secretAlias = isArn ? secretValueResponse.name : secretId;
                 }
 
-                const injectedSecrets = injectSecret(secretAlias, secretValueResponse.secretValue, parseJsonSecrets);
-                secretsToCleanup = [...secretsToCleanup, ...injectedSecrets];
+                injectSecret(secretAlias, secretValueResponse.secretValue, parseJsonSecrets, injectedSecretIds);
             } catch (err) {
                 // Fail action for any error
                 core.setFailed(`Failed to fetch secret: '${secretId}'. Error: ${err}.`)
             } 
         }
-
-        // Export the names of variables to clean up after completion
-        core.exportVariable(CLEANUP_NAME, JSON.stringify(secretsToCleanup));
 
         core.info("Completed adding secrets.");
     } catch (error) {

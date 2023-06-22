@@ -14,13 +14,13 @@ import {
     injectSecret,
     isSecretArn,
     extractAliasAndSecretIdFromInput,
-    transformToValidEnvName
+    transformToValidVarName
 } from "../src/utils";
 
-import { CLEANUP_NAME, LIST_SECRETS_MAX_RESULTS } from "../src/constants";
+import { LIST_SECRETS_MAX_RESULTS } from "../src/constants";
 
 const TEST_NAME = 'test/secret';
-const TEST_ENV_NAME = 'TEST_SECRET';
+const TEST_VAR_NAME = 'test_secret';
 const TEST_VALUE = 'test!secret!value!';
 const SIMPLE_JSON_SECRET = '{"api_key": "testkey", "user": "testuser"}';
 const NESTED_JSON_SECRET = '{"host":"127.0.0.1", "port": "3600", "config":{"db_user":"testuser","db_password":"testpw","options":{"a":"YES","b":"NO", "c": 100 }}}';
@@ -285,40 +285,34 @@ describe('Test secret parsing and handling', () => {
     * Test: injectSecret()
     */
     test('Stores a simple secret', () => {
-        injectSecret(TEST_NAME, TEST_VALUE, false);
-        expect(core.exportVariable).toHaveBeenCalledTimes(1);
-        expect(core.exportVariable).toHaveBeenCalledWith(TEST_ENV_NAME, TEST_VALUE);
+        injectSecret(TEST_NAME, TEST_VALUE, false, new Set);
+        expect(core.setOutput).toHaveBeenCalledTimes(1);
+        expect(core.setOutput).toHaveBeenCalledWith(TEST_VAR_NAME, TEST_VALUE);
     });
 
     test('Stores a JSON secret as string when parseJson is false', () => {
-        injectSecret(TEST_NAME, SIMPLE_JSON_SECRET, false);
-        expect(core.exportVariable).toHaveBeenCalledTimes(1);
-        expect(core.exportVariable).toHaveBeenCalledWith(TEST_ENV_NAME, SIMPLE_JSON_SECRET);
-    });
-
-    test('Throws an error if reserved name is used', () => {
-        expect(() => {
-            injectSecret(CLEANUP_NAME, TEST_VALUE, false);
-        }).toThrow();
+        injectSecret(TEST_NAME, SIMPLE_JSON_SECRET, false, new Set);
+        expect(core.setOutput).toHaveBeenCalledTimes(1);
+        expect(core.setOutput).toHaveBeenCalledWith(TEST_VAR_NAME, SIMPLE_JSON_SECRET);
     });
 
     test('Stores a variable for each JSON key value when parseJson is true', () => {
-        injectSecret(TEST_NAME, SIMPLE_JSON_SECRET, true);
-        expect(core.exportVariable).toHaveBeenCalledTimes(2);
-        expect(core.exportVariable).toHaveBeenCalledWith('TEST_SECRET_API_KEY', 'testkey');
-        expect(core.exportVariable).toHaveBeenCalledWith('TEST_SECRET_USER', 'testuser');
+        injectSecret(TEST_NAME, SIMPLE_JSON_SECRET, true, new Set);
+        expect(core.setOutput).toHaveBeenCalledTimes(2);
+        expect(core.setOutput).toHaveBeenCalledWith('test_secret_api_key', 'testkey');
+        expect(core.setOutput).toHaveBeenCalledWith('test_secret_user', 'testuser');
     });
 
     test('Stores a variable for nested JSON key values when parseJson is true', () => {
-        injectSecret(TEST_NAME, NESTED_JSON_SECRET, true);
+        injectSecret(TEST_NAME, NESTED_JSON_SECRET, true, new Set);
         expect(core.setSecret).toHaveBeenCalledTimes(7);
-        expect(core.exportVariable).toHaveBeenCalledWith('TEST_SECRET_HOST', '127.0.0.1');
-        expect(core.exportVariable).toHaveBeenCalledWith('TEST_SECRET_PORT', '3600');
-        expect(core.exportVariable).toHaveBeenCalledWith('TEST_SECRET_CONFIG_DB_USER', 'testuser');
-        expect(core.exportVariable).toHaveBeenCalledWith('TEST_SECRET_CONFIG_DB_PASSWORD', 'testpw');
-        expect(core.exportVariable).toHaveBeenCalledWith('TEST_SECRET_CONFIG_OPTIONS_A', 'YES');
-        expect(core.exportVariable).toHaveBeenCalledWith('TEST_SECRET_CONFIG_OPTIONS_B', 'NO');
-        expect(core.exportVariable).toHaveBeenCalledWith('TEST_SECRET_CONFIG_OPTIONS_C', '100');
+        expect(core.setOutput).toHaveBeenCalledWith('test_secret_host', '127.0.0.1');
+        expect(core.setOutput).toHaveBeenCalledWith('test_secret_port', '3600');
+        expect(core.setOutput).toHaveBeenCalledWith('test_secret_config_db_user', 'testuser');
+        expect(core.setOutput).toHaveBeenCalledWith('test_secret_config_db_password', 'testpw');
+        expect(core.setOutput).toHaveBeenCalledWith('test_secret_config_options_a', 'YES');
+        expect(core.setOutput).toHaveBeenCalledWith('test_secret_config_options_b', 'NO');
+        expect(core.setOutput).toHaveBeenCalledWith('test_secret_config_options_c', '100');
     });
 
     /* 
@@ -335,9 +329,9 @@ describe('Test secret parsing and handling', () => {
         expect(extractAliasAndSecretIdFromInput(VALID_ARN_1)).toEqual(['', VALID_ARN_1]);
     });
 
-    test('Throws an error if the provided alias cannot be used as the environment name', () => {
+    test('Throws an error if the provided alias cannot be used as the output name', () => {
         expect(() => {
-            extractAliasAndSecretIdFromInput("Invalid-env, test/secret")
+            extractAliasAndSecretIdFromInput("Invalid-var, test/secret")
         }).toThrow();
 
         expect(() => {
@@ -350,18 +344,14 @@ describe('Test secret parsing and handling', () => {
     });
 
     /* 
-    * Test: transformToValidEnvName()
+    * Test: transformToValidVarName()
     */
-    test('Prevents illegal special characters in environment name', () => {
-        expect(transformToValidEnvName('prod/db/admin')).toBe('PROD_DB_ADMIN')
+    test('Prevents illegal special characters in output variable name', () => {
+        expect(transformToValidVarName('prod/db/admin')).toBe('prod_db_admin')
     });
 
-    test('Prevents leading digits in environment name', () => {
-        expect(transformToValidEnvName('0Admin')).toBe('_0ADMIN')
-    });
-
-    test('Transforms to uppercase for environment name', () => {
-        expect(transformToValidEnvName('secret3')).toBe('SECRET3')
+    test('Prevents leading digits in output variable name', () => {
+        expect(transformToValidVarName('0Admin')).toBe('_0Admin')
     });
 
     /* 
