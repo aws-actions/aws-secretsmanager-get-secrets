@@ -22,9 +22,6 @@ const TEST_NAME_1 = 'test/secret1';
 const VALID_ARN_2 = 'arn:aws:secretsmanager:ap-south-1:123456789000:secret:test2-aBcdef';
 const TEST_NAME_2 = 'test/secret2';
 
-const NOT_MATCHING_ARN_3 = 'arn:aws:secretsmanager:us-east-1:123456789000:secret:alternativeSecret-aBcdef';
-const NOT_MATCHING_TEST = 'alternativeSecret';
-
 const INVALID_ARN = 'aws:secretsmanager:us-east-1:123456789000:secret:test3-aBcdef';
 
 jest.mock('@actions/core');
@@ -254,6 +251,227 @@ describe('Test secret value retrieval', () => {
 		expect(smMockClient).toHaveReceivedCommandTimes(ListSecretsCommand, 1);
 		expect(smMockClient).toHaveReceivedCommandWith(ListSecretsCommand, expectedParams);
 	});
+  
+    beforeEach(() => {
+        smMockClient.reset();
+        jest.clearAllMocks();
+    });
+
+    test('Retrieves a secret string', async () => {
+        smMockClient.on(GetSecretValueCommand).resolves({
+            Name: TEST_NAME,
+            SecretString: TEST_VALUE,
+        });
+
+        const secretValue = await getSecretValue(smClient, TEST_NAME);
+        expect(secretValue.secretValue).toStrictEqual(TEST_VALUE);
+    });
+
+    test('Retrieves a secret string and returns with name if requested', async () => {
+        smMockClient.on(GetSecretValueCommand).resolvesOnce({
+            Name: TEST_NAME_1,
+            SecretString: SIMPLE_JSON_SECRET
+        }).resolves({
+            SecretString: TEST_VALUE
+        });
+
+        const secretValue1 = await getSecretValue(smClient, VALID_ARN_1);
+        expect(secretValue1.name).toStrictEqual(TEST_NAME_1);
+        expect(secretValue1.secretValue).toStrictEqual(SIMPLE_JSON_SECRET);
+
+        // Throw an error if something wrong with secret name
+        await expect(getSecretValue(smClient, TEST_NAME_2)).rejects.toThrow();
+    });
+
+    test('Retrieves a binary secret', async () => {
+        const bytes = new TextEncoder().encode(TEST_VALUE);
+
+        smMockClient.on(GetSecretValueCommand).resolves({
+            Name: TEST_NAME,
+            SecretBinary: bytes,
+        });
+
+        const secretValue = await getSecretValue(smClient, TEST_NAME);
+        expect(secretValue.secretValue).toStrictEqual(TEST_VALUE);
+    });
+
+    test('Throws an error if unable to retrieve the secret', async () => {
+        const error = new ResourceNotFoundException({$metadata: {}, message: 'Error'});
+        smMockClient.on(GetSecretValueCommand).rejects(error);
+        await expect(getSecretValue(smClient, TEST_NAME)).rejects.toThrow(error);
+    });
+
+    test('Throws an error if the secret value is invalid', async () => {
+        smMockClient.on(GetSecretValueCommand).resolves({});
+        await expect(getSecretValue(smClient, TEST_NAME)).rejects.toThrow();
+    });
+
+    test('Throws error on invalid list secrets response ', async () => {
+        smMockClient
+            .on(ListSecretsCommand)
+            .resolves({});
+        await expect(getSecretsWithPrefix(smClient, "test", false)).rejects.toThrow();
+    });
+
+    test('Builds a complete list of secrets from user input', async () => {
+        const input = ["test/*", "alternativeSecret"];
+        const expectedParams = {
+            Filters: [
+                {
+                    Key: "name",
+                    Values: [
+                        "test/",
+                    ]
+                },
+            ],
+            MaxResults: LIST_SECRETS_MAX_RESULTS,
+        } as ListSecretsCommandInput;
+
+        smMockClient.on(ListSecretsCommand).resolves({
+            SecretList: [
+                {
+                    ARN: VALID_ARN_1,
+                    Name: TEST_NAME_1
+                },
+                {
+                    ARN: VALID_ARN_2,
+                    Name: TEST_NAME_2
+                }
+            ]
+        });
+        const result = await buildSecretsList(smClient, input);
+        expect(smMockClient).toHaveReceivedCommandTimes(ListSecretsCommand, 1);
+        expect(smMockClient).toHaveReceivedCommandWith(ListSecretsCommand, expectedParams);
+        expect(result).toEqual([TEST_NAME_1, TEST_NAME_2, 'alternativeSecret']);
+    });
+
+    test('Builds a complete list of secrets, including alias, for prefix secret', async () => {
+        const input = ["SECRET_ALIAS,test/*", "alternativeSecret"];
+        const expectedParams = {
+            Filters: [
+                {
+                    Key: "name",
+                    Values: [
+                        "test/",
+                    ]
+                },
+            ],
+            MaxResults: LIST_SECRETS_MAX_RESULTS,
+        } as ListSecretsCommandInput;
+
+        smMockClient.on(ListSecretsCommand).resolves({
+            SecretList: [
+                {
+                    ARN: VALID_ARN_1,
+                    Name: TEST_NAME_1
+                }
+            ]
+        });
+        const result = await buildSecretsList(smClient, input);
+        expect(smMockClient).toHaveReceivedCommandTimes(ListSecretsCommand, 1);
+        expect(smMockClient).toHaveReceivedCommandWith(ListSecretsCommand, expectedParams);
+        expect(result).toEqual(['SECRET_ALIAS,' + TEST_NAME_1, 'alternativeSecret']);
+    });
+
+
+    test('Throws an error if a prefix filter is invalid or not specific enough', async () => {
+        let input = ["/*", "alternativeSecret"];
+        await expect(buildSecretsList(smClient, input)).rejects.toThrow();
+
+        input = ["*not/a/prefix", "alternativeSecret"];
+        await expect(buildSecretsList(smClient, input)).rejects.toThrow();
+
+        input = ["a*", "alternativeSecret"];
+        await expect(buildSecretsList(smClient, input)).rejects.toThrow();
+    });
+
+    test('Throws an error if a prefix filter returns too many results', async () => {
+        const input = ["too/many/matches/*"];
+        const expectedParams = {
+            Filters: [
+                {
+                    Key: "name",
+                    Values: [
+                        "too/many/matches/",
+                    ]
+                },
+            ],
+            MaxResults: LIST_SECRETS_MAX_RESULTS,
+        } as ListSecretsCommandInput;
+
+        smMockClient.on(ListSecretsCommand).resolves({
+            SecretList: [
+                {
+                    ARN: VALID_ARN_1,
+                    Name: TEST_NAME_1
+                },
+                {
+                    ARN: VALID_ARN_2,
+                    Name: TEST_NAME_2
+                }
+            ],
+            NextToken: "ThereAreTooManyResults"
+        });
+
+        await expect(buildSecretsList(smClient, input)).rejects.toThrow();
+        expect(smMockClient).toHaveReceivedCommandTimes(ListSecretsCommand, 1);
+        expect(smMockClient).toHaveReceivedCommandWith(ListSecretsCommand, expectedParams);
+    });
+
+    test('Throws an error if a prefix filter has no results', async () => {
+        const input = ["no/matches/*"];
+        const expectedParams = {
+            Filters: [
+                {
+                    Key: "name",
+                    Values: [
+                        "no/matches/",
+                    ]
+                },
+            ],
+            MaxResults: LIST_SECRETS_MAX_RESULTS,
+        } as ListSecretsCommandInput;
+
+        smMockClient.on(ListSecretsCommand).resolves({
+            SecretList: []
+        });
+
+        await expect(buildSecretsList(smClient, input)).rejects.toThrow();
+        expect(smMockClient).toHaveReceivedCommandTimes(ListSecretsCommand, 1);
+        expect(smMockClient).toHaveReceivedCommandWith(ListSecretsCommand, expectedParams);
+    });
+
+    test('Throws an error if a prefix filter with an alias returns more than 1 result', async () => {
+        const input = ["SECRET_ALIAS,test/*"];
+        const expectedParams = {
+            Filters: [
+                {
+                    Key: "name",
+                    Values: [
+                        "test/",
+                    ]
+                },
+            ],
+            MaxResults: LIST_SECRETS_MAX_RESULTS,
+        } as ListSecretsCommandInput;
+
+        smMockClient.on(ListSecretsCommand).resolves({
+            SecretList: [
+                {
+                    ARN: VALID_ARN_1,
+                    Name: TEST_NAME_1
+                },
+                {
+                    ARN: VALID_ARN_2,
+                    Name: TEST_NAME_2
+                }
+            ]
+        });
+
+        await expect(buildSecretsList(smClient, input)).rejects.toThrow();
+        expect(smMockClient).toHaveReceivedCommandTimes(ListSecretsCommand, 1);
+        expect(smMockClient).toHaveReceivedCommandWith(ListSecretsCommand, expectedParams);
+    });
 
 });
 

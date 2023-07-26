@@ -158,6 +158,37 @@ export function injectSecret(secretName: string, secretValue: string, parseJsonS
 	}
 
 	return secretsToCleanup;
+
+    let secretsToCleanup = [] as string[];
+    if(parseJsonSecrets && isJSONString(secretValue)){
+        // Recursively parses json secrets
+        const secretMap = JSON.parse(secretValue) as Record<string, string | object>;
+
+        for (const k in secretMap) {
+            const keyValue = typeof secretMap[k] === 'string' ? secretMap[k] as string : JSON.stringify(secretMap[k]);
+
+            // Append the current key to the name of the env variable
+            const newEnvName = `${tempEnvName || transformToValidEnvName(secretName)}_${transformToValidEnvName(k)}`;
+            secretsToCleanup = [...secretsToCleanup, ...injectSecret(secretName, keyValue, parseJsonSecrets, newEnvName)];
+        }
+    } else {
+        const envName = tempEnvName ? transformToValidEnvName(tempEnvName) : transformToValidEnvName(secretName);
+
+        // Fail the action if this variable name is already in use, or is our cleanup name
+        if (process.env[envName] || envName === CLEANUP_NAME){
+            throw new Error(`The environment name '${envName}' is already in use. Please use an alias to ensure that each secret has a unique environment name`);
+        }
+
+        // Inject a single secret
+        core.setSecret(secretValue);
+
+        // Export variable
+        core.debug(`Injecting secret ${secretName} as environment variable '${envName}'.`);
+        core.exportVariable(envName, secretValue);
+        secretsToCleanup.push(envName);
+    }
+
+    return secretsToCleanup;
 }
 
 /*
