@@ -1,16 +1,15 @@
-import * as core from '@actions/core'
+import * as core from '@actions/core';
 import {
-    SecretsManagerClient,
-    GetSecretValueCommand,
-    ListSecretsCommand,
-    ListSecretsResponse,
-    ListSecretsCommandInput
+	GetSecretValueCommand,
+	ListSecretsCommand, ListSecretsCommandInput, ListSecretsResponse, SecretsManagerClient
 } from "@aws-sdk/client-secrets-manager";
+import { NodeHttpHandler } from '@aws-sdk/node-http-handler';
+import { HttpsProxyAgent } from 'hpagent';
 import { CLEANUP_NAME, LIST_SECRETS_MAX_RESULTS } from "./constants";
 
 export interface SecretValueResponse {
-    name: string,
-    secretValue: string
+	name: string,
+	secretValue: string
 }
 
 /**
@@ -20,30 +19,30 @@ export interface SecretValueResponse {
  * @param configInputs: List of secret names, ARNs, and prefixes provided by user
  */
 export async function buildSecretsList(client: SecretsManagerClient, configInputs: string[]): Promise<string[]> {
-    const finalSecretsList = new Set<string>();
+	const finalSecretsList = new Set<string>();
 
-    // Prefix filters should be at least 3 characters, ending in *
-    const validFilter = new RegExp('^[a-zA-Z0-9\\/_+=.@-]{3,}\\*$');
+	// Prefix filters should be at least 3 characters, ending in *
+	const validFilter = new RegExp('^[a-zA-Z0-9\\/_+=.@-]{3,}\\*$');
 
-    for (const configInput of configInputs) {
-        if (configInput.includes('*')) {
-            const [secretAlias, secretPrefix] = extractAliasAndSecretIdFromInput(configInput);
+	for (const configInput of configInputs) {
+		if (configInput.includes('*')) {
+			const [secretAlias, secretPrefix] = extractAliasAndSecretIdFromInput(configInput);
 
-            if (!validFilter.test(secretPrefix)) {
-                throw new Error('Please use a valid prefix search (should be at least 3 characters and end in *)');
-            }
+			if (!validFilter.test(secretPrefix)) {
+				throw new Error('Please use a valid prefix search (should be at least 3 characters and end in *)');
+			}
 
-            // Find and add results for a given prefix
-            const prefixMatches: string[] = await getSecretsWithPrefix(client, secretPrefix, !!secretAlias);
+			// Find and add results for a given prefix
+			const prefixMatches: string[] = await getSecretsWithPrefix(client, secretPrefix, !!secretAlias);
 
-            // Add back the alias, if one was requested
-            prefixMatches.forEach(secret => finalSecretsList.add(secretAlias ? `${secretAlias},${secret}` : secret));
-        } else {
-            finalSecretsList.add(configInput);
-        }
-    }
+			// Add back the alias, if one was requested
+			prefixMatches.forEach(secret => finalSecretsList.add(secretAlias ? `${secretAlias},${secret}` : secret));
+		} else {
+			finalSecretsList.add(configInput);
+		}
+	}
 
-    return [...finalSecretsList];
+	return [...finalSecretsList];
 }
 
 /**
@@ -54,41 +53,41 @@ export async function buildSecretsList(client: SecretsManagerClient, configInput
  * @param hasAlias: Flag to indicate that an alias was requested (can only match 1 secret)
  */
 export async function getSecretsWithPrefix(client: SecretsManagerClient, prefix: string, hasAlias: boolean): Promise<string[]> {
-    const params = {
-        Filters: [
-            {
-                Key: "name",
-                Values: [
-                    prefix.replace('*', ''),
-                ]
-            },
-        ],
-        MaxResults: LIST_SECRETS_MAX_RESULTS,
-    } as ListSecretsCommandInput;
+	const params = {
+		Filters: [
+			{
+				Key: "name",
+				Values: [
+					prefix.replace('*', ''),
+				]
+			},
+		],
+		MaxResults: LIST_SECRETS_MAX_RESULTS,
+	} as ListSecretsCommandInput;
 
-    const response: ListSecretsResponse = await client.send(new ListSecretsCommand(params));
+	const response: ListSecretsResponse = await client.send(new ListSecretsCommand(params));
 
-    if (response.SecretList){
-        const secretsList = response.SecretList;
-        if (secretsList.length === 0){
-            throw new Error(`No matching secrets were returned for prefix "${prefix}".`);
-        } else if (hasAlias && secretsList.length > 1){
-            // If an alias was requested, we cannot match more than one result
-            throw new Error(`A unique alias was requested for prefix "${prefix}", but the search result for this prefix returned multiple results.`);
-        } else if (response.NextToken) {
-            // If there is a second page of results, this exceeds the max number of matches
-            throw new Error(`A search for prefix "${prefix}" matched more than the maximum of ${LIST_SECRETS_MAX_RESULTS} secrets per prefix.`);
-        }
+	if (response.SecretList) {
+		const secretsList = response.SecretList;
+		if (secretsList.length === 0) {
+			throw new Error(`No matching secrets were returned for prefix "${prefix}".`);
+		} else if (hasAlias && secretsList.length > 1) {
+			// If an alias was requested, we cannot match more than one result
+			throw new Error(`A unique alias was requested for prefix "${prefix}", but the search result for this prefix returned multiple results.`);
+		} else if (response.NextToken) {
+			// If there is a second page of results, this exceeds the max number of matches
+			throw new Error(`A search for prefix "${prefix}" matched more than the maximum of ${LIST_SECRETS_MAX_RESULTS} secrets per prefix.`);
+		}
 
-        return secretsList.reduce((foundSecrets, secret) => {
-            if (secret.Name) {
-                foundSecrets.push(secret.Name);
-            }
-            return foundSecrets;
-        }, [] as string[]);
-    } else {
-        throw new Error('Invalid response from ListSecrets occurred');
-    }
+		return secretsList.reduce((foundSecrets, secret) => {
+			if (secret.Name) {
+				foundSecrets.push(secret.Name);
+			}
+			return foundSecrets;
+		}, [] as string[]);
+	} else {
+		throw new Error('Invalid response from ListSecrets occurred');
+	}
 }
 
 /**
@@ -99,25 +98,25 @@ export async function getSecretsWithPrefix(client: SecretsManagerClient, prefix:
  * @returns SecretValueResponse
  */
 export async function getSecretValue(client: SecretsManagerClient, secretId: string): Promise<SecretValueResponse> {
-    let secretValue = '';
+	let secretValue = '';
 
-    const data = await client.send(new GetSecretValueCommand({SecretId: secretId}));
+	const data = await client.send(new GetSecretValueCommand({ SecretId: secretId }));
 
-    if (data.SecretString) {
-        secretValue = data.SecretString as string;
-    } else if (data.SecretBinary) {
-        // Only string and JSON string values are supported in Github env
-        secretValue = Buffer.from(data.SecretBinary).toString('ascii');
-    }
+	if (data.SecretString) {
+		secretValue = data.SecretString as string;
+	} else if (data.SecretBinary) {
+		// Only string and JSON string values are supported in Github env
+		secretValue = Buffer.from(data.SecretBinary).toString('ascii');
+	}
 
-    if (!(data.Name)){
-        throw new Error('Invalid name for secret');
-    }
+	if (!(data.Name)) {
+		throw new Error('Invalid name for secret');
+	}
 
-    return {
-        name: data.Name,
-        secretValue
-    } as SecretValueResponse;
+	return {
+		name: data.Name,
+		secretValue
+	} as SecretValueResponse;
 }
 
 /**
@@ -129,6 +128,37 @@ export async function getSecretValue(client: SecretsManagerClient, secretId: str
  * @param tempEnvName: If parsing JSON secrets, contains the current name for the env variable
  */
 export function injectSecret(secretName: string, secretValue: string, parseJsonSecrets: boolean, tempEnvName?: string): string[] {
+	let secretsToCleanup = [] as string[];
+	if (parseJsonSecrets && isJSONString(secretValue)) {
+		// Recursively parses json secrets
+		const secretMap = JSON.parse(secretValue) as Record<string, any>;
+
+		for (const k in secretMap) {
+			const keyValue = typeof secretMap[k] === 'string' ? secretMap[k] : JSON.stringify(secretMap[k]);
+
+			// Append the current key to the name of the env variable
+			const newEnvName = `${tempEnvName || transformToValidEnvName(secretName)}_${transformToValidEnvName(k)}`;
+			secretsToCleanup = [...secretsToCleanup, ...injectSecret(secretName, keyValue, parseJsonSecrets, newEnvName)];
+		}
+	} else {
+		const envName = tempEnvName ? transformToValidEnvName(tempEnvName) : transformToValidEnvName(secretName);
+
+		// Fail the action if this variable name is already in use, or is our cleanup name
+		if (process.env[envName] || envName === CLEANUP_NAME) {
+			throw new Error(`The environment name '${envName}' is already in use. Please use an alias to ensure that each secret has a unique environment name`);
+		}
+
+		// Inject a single secret
+		core.setSecret(secretValue);
+
+		// Export variable
+		core.debug(`Injecting secret ${secretName} as environment variable '${envName}'.`);
+		core.exportVariable(envName, secretValue);
+		secretsToCleanup.push(envName);
+	}
+
+	return secretsToCleanup;
+
     let secretsToCleanup = [] as string[];
     if(parseJsonSecrets && isJSONString(secretValue)){
         // Recursively parses json secrets
@@ -165,14 +195,14 @@ export function injectSecret(secretName: string, secretValue: string, parseJsonS
  * Checks if the given secret is a valid JSON value
  */
 export function isJSONString(secretValue: string): boolean {
-    try {
-        // Not valid JSON if the parsed result is null/falsy, not an object, or is an array
-        const parsedObject = JSON.parse(secretValue);
-        return !!parsedObject && (typeof parsedObject === 'object') && !Array.isArray(parsedObject);
-    } catch {
-        // Not JSON if the string fails to parse
-        return false;
-    }
+	try {
+		// Not valid JSON if the parsed result is null/falsy, not an object, or is an array
+		const parsedObject = JSON.parse(secretValue);
+		return !!parsedObject && (typeof parsedObject === 'object') && !Array.isArray(parsedObject);
+	} catch {
+		// Not JSON if the string fails to parse
+		return false;
+	}
 }
 
 /*
@@ -180,13 +210,13 @@ export function isJSONString(secretValue: string): boolean {
  * It should consist of only upper case letters, digits, and underscores and cannot begin with a number
  */
 export function transformToValidEnvName(secretName: string): string {
-    // Leading digits are invalid
-    if (secretName.match(/^[0-9]/)){
-        secretName = '_'.concat(secretName);
-    }
+	// Leading digits are invalid
+	if (secretName.match(/^[0-9]/)) {
+		secretName = '_'.concat(secretName);
+	}
 
-    // Remove invalid characters
-    return secretName.replace(/[^a-zA-Z0-9_]/g, '_').toUpperCase()
+	// Remove invalid characters
+	return secretName.replace(/[^a-zA-Z0-9_]/g, '_').toUpperCase()
 }
 
 
@@ -197,37 +227,61 @@ export function transformToValidEnvName(secretName: string): string {
  * @returns Boolean
  */
 export function isSecretArn(secretId: string): boolean {
-    const validArn = new RegExp('^arn:aws:secretsmanager:.*:[0-9]{12,}:secret:.*$');
-    return validArn.test(secretId);
+	const validArn = new RegExp('^arn:aws:secretsmanager:.*:[0-9]{12,}:secret:.*$');
+	return validArn.test(secretId);
 }
 
 /*
  * Separates a secret alias from the secret name/arn, if one was provided
  */
 export function extractAliasAndSecretIdFromInput(input: string): [string, string] {
-    const parsedInput = input.split(',');
-    if (parsedInput.length > 1){
-        const alias = parsedInput[0].trim();
-        const secretId = parsedInput[1].trim();
+	const parsedInput = input.split(',');
+	if (parsedInput.length > 1) {
+		const alias = parsedInput[0].trim();
+		const secretId = parsedInput[1].trim();
 
-        // Validate that the alias is valid environment name
-        const validateEnvName = transformToValidEnvName(alias);
-        if (alias !== validateEnvName){
-            throw new Error(`The alias '${alias}' is not a valid environment name. Please verify that it has uppercase letters, numbers, and underscore only.`);
-        }
+		// Validate that the alias is valid environment name
+		const validateEnvName = transformToValidEnvName(alias);
+		if (alias !== validateEnvName) {
+			throw new Error(`The alias '${alias}' is not a valid environment name. Please verify that it has uppercase letters, numbers, and underscore only.`);
+		}
 
-        // Return [alias, id]
-        return [alias, secretId];
-    }
+		// Return [alias, id]
+		return [alias, secretId];
+	}
 
-    // No alias
-    return [ '', input.trim() ];
+	// No alias
+	return ['', input.trim()];
 }
 
 /*
  * Cleans up an environment variable
  */
-export function cleanVariable(variableName: string){
-    core.exportVariable(variableName, '');
-    delete process.env[variableName];
+export function cleanVariable(variableName: string) {
+	core.exportVariable(variableName, '');
+	delete process.env[variableName];
+}
+
+/* Configure proxy server
+ * @param proxyServer: proxy server
+ */
+export function configureProxy(proxyServer: string, secretManagerClientConfig: any) {
+
+	const proxyFromEnv: string = process.env.HTTP_PROXY || process.env.http_proxy || "";
+	let proxyToSet;
+	if (proxyFromEnv || proxyServer) {
+		if (proxyServer) {
+			console.log(`Setting proxy from actions input: ${proxyServer}`);
+			proxyToSet = proxyServer;
+		} else {
+			console.log(`Setting proxy from environment: ${proxyFromEnv}`);
+			proxyToSet = proxyFromEnv;
+		}
+		const agent = new HttpsProxyAgent({ proxy: proxyToSet });
+		secretManagerClientConfig.requestHandler = new NodeHttpHandler({
+			httpAgent: agent,
+			httpsAgent: agent
+		})
+	}
+	return proxyToSet;
 }
