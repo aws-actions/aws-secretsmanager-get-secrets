@@ -1,5 +1,6 @@
 import * as core from '@actions/core'
 import { mockClient } from "aws-sdk-client-mock";
+import 'aws-sdk-client-mock-jest';
 import {
     GetSecretValueCommand,
     ListSecretsCommand,
