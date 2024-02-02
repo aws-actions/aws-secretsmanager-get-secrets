@@ -7,6 +7,7 @@ import {
     ListSecretsCommandInput
 } from "@aws-sdk/client-secrets-manager";
 import { CLEANUP_NAME, LIST_SECRETS_MAX_RESULTS } from "./constants";
+import "aws-sdk-client-mock-jest";
 
 export interface SecretValueResponse {
     name: string,
