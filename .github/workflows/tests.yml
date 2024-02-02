@@ -13,10 +13,10 @@ jobs:
     name: Run unit tests
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Run unit tests
         run: |
           npm ci
           npm run test
       - name: Codecov
-        uses: codecov/codecov-action@v3.1.4
+        uses: codecov/codecov-action@v4
