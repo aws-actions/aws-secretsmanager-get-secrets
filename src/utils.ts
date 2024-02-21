@@ -138,8 +138,12 @@ export function injectSecret(secretName: string, secretValue: string, parseJsonS
         for (const k in secretMap) {
             const keyValue = typeof secretMap[k] === 'string' ? secretMap[k] as string : JSON.stringify(secretMap[k]);
 
+            // Check to avoid prepending an underscore
+            const newEnvNamePrefix = tempEnvName || transformToValidEnvName(secretName);
+            const newEnvNameSpacer: "_"|"" = newEnvNamePrefix ? "_" : "";
+
             // Append the current key to the name of the env variable
-            const newEnvName = `${tempEnvName || transformToValidEnvName(secretName)}_${transformToValidEnvName(k)}`;
+            const newEnvName = `${newEnvNamePrefix}${newEnvNameSpacer}${transformToValidEnvName(k)}`;
             secretsToCleanup = [...secretsToCleanup, ...injectSecret(secretName, keyValue, parseJsonSecrets, newEnvName)];
         }
     } else {

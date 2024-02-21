@@ -32,16 +32,16 @@ const ENV_NAME_4 = 'ARN_ALIAS';
 const SECRET_4 = "secretString2";
 const TEST_ARN_INPUT = ENV_NAME_4 + "," + TEST_ARN_1;
 
-const BLANK_NAME= "test/blank";
-const SECRET_FOR_BLANK = '{"user": "integ", "password": "integpw", "config": {"id1": "example1"}}';
+const BLANK_NAME = "test/blank";
+const SECRET_FOR_BLANK = '{"username": "integ", "password": "integpw", "config": {"id1": "example1"}}';
 const BLANK_ALIAS_INPUT = "," + BLANK_NAME;
 
-const BLANK_NAME_2= "test/blank2";
+const BLANK_NAME_2 = "test/blank2";
 const SECRET_FOR_BLANK_2 = "blankNameSecretString";
 const BLANK_ALIAS_INPUT_2 = "," + BLANK_NAME_2;
 
-const BLANK_NAME_3= "test/blank3";
-const SECRET_FOR_BLANK_3 = '{"user": "integ", "password": "integpw", "config": {"id2": "example2"}}';
+const BLANK_NAME_3 = "test/blank3";
+const SECRET_FOR_BLANK_3 = '{"username": "integ", "password": "integpw", "config": {"id2": "example2"}}';
 const BLANK_ALIAS_INPUT_3 = "," + BLANK_NAME_3;
 
 // Mock the inputs for Github action
@@ -120,9 +120,9 @@ describe('Test main action', () => {
 
         // Case when alias is blank, but still comma delimited in workflow and json is parsed
         // ex: ,test5/secret
-        expect(core.exportVariable).toHaveBeenCalledWith("_USER", "integ");
-        expect(core.exportVariable).toHaveBeenCalledWith("_PASSWORD", "integpw");
-        expect(core.exportVariable).toHaveBeenCalledWith("_CONFIG_ID1", "example1");
+        expect(core.exportVariable).toHaveBeenCalledWith("USERNAME", "integ");
+        expect(core.exportVariable).toHaveBeenCalledWith("PASSWORD", "integpw");
+        expect(core.exportVariable).toHaveBeenCalledWith("CONFIG_ID1", "example1");
 
         expect(core.exportVariable).toHaveBeenCalledWith(
             CLEANUP_NAME,
@@ -131,7 +131,7 @@ describe('Test main action', () => {
                 'TEST_TWO_USER', 'TEST_TWO_PASSWORD',
                 ENV_NAME_3,
                 ENV_NAME_4,
-                "_USER", "_PASSWORD", "_CONFIG_ID1"
+                "USERNAME", "PASSWORD", "CONFIG_ID1"
             ])
         );
 
@@ -158,7 +158,7 @@ describe('Test main action', () => {
         // Case when alias is blank, but still comma delimited in workflow and no json is parsed
         // ex: ,test/blank2
         expect(core.exportVariable).toHaveBeenCalledWith("TEST_BLANK2", "blankNameSecretString");
-        expect(core.exportVariable).toHaveBeenCalledWith("TEST_BLANK3", '{"user": "integ", "password": "integpw", "config": {"id2": "example2"}}');
+        expect(core.exportVariable).toHaveBeenCalledWith("TEST_BLANK3", '{"username": "integ", "password": "integpw", "config": {"id2": "example2"}}');
 
         expect(core.exportVariable).toHaveBeenCalledWith(
             CLEANUP_NAME,
@@ -189,7 +189,7 @@ describe('Test main action', () => {
 
     test('Fails the action when multiple secrets exported the same variable name', async () => {
         const booleanSpy = jest.spyOn(core, "getBooleanInput").mockReturnValue(true);
-        const multilineInputSpy =jest.spyOn(core, "getMultilineInput").mockReturnValue(
+        const multilineInputSpy = jest.spyOn(core, "getMultilineInput").mockReturnValue(
             [TEST_NAME, TEST_INPUT_3, TEST_ARN_INPUT]
         );
 
