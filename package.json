@@ -4,7 +4,7 @@
   "description": "GitHub action for retrieving secrets from AWS Secrets Manager",
   "main": "dist/index.js",
   "scripts": {
-    "test": "npm run lint && jest --coverage --verbose",
+    "test": "npm run lint && jest --coverage --verbose __tests__",
     "integration-test": "jest --coverage --verbose __integration_tests__",
     "lint": "eslint src/**.ts",
     "fix": "eslint src/** --fix",
