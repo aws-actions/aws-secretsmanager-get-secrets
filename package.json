@@ -5,6 +5,7 @@
   "main": "dist/index.js",
   "scripts": {
     "test": "npm run lint && jest --coverage --verbose",
+    "integration-test": "jest --coverage --verbose __integration_tests__",
     "lint": "eslint src/**.ts",
     "fix": "eslint src/** --fix",
     "build": "tsc && ncc build ./src/index.ts --source-map --license licenses.txt && ncc build ./src/cleanup.ts -o dist/cleanup"

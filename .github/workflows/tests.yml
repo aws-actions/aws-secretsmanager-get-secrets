@@ -10,13 +10,36 @@ on:
 jobs:
   tests:
     runs-on: ubuntu-latest
-    name: Run unit tests
+    permissions:
+      id-token: write
+      contents: read
+    name: Run Tests
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Run unit tests
+      - name: Run Unit Tests
         run: |
           npm ci
           npm run test
+      - name: Build
+        run: npm run build
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::339713045997:role/GithubActionsRole  
+          aws-region: us-east-1
+      - name: Integration Tests Act
+        uses: ./
+        with:
+          secret-ids: |
+            SampleSecret1
+            SAMPLESECRET1_ALIAS, SampleSecret1
+            /special/chars/secret
+            0/special/chars/secret
+            PrefixSecret*
+            JsonSecret
+          parse-json-secrets: true
+      - name: Integration Tests Assert
+        run: npm run integration-test
       - name: Codecov
         uses: codecov/codecov-action@v4
