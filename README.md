@@ -43,9 +43,9 @@ To use the action, add a step to your workflow that uses the following syntax.
 ### Parameters
 - `secret-ids`: Secret ARNS, names, and name prefixes. 
 
-By default, the step creates each environment variable name from the secret name, transformed to include only uppercase letters, numbers, and underscores, and so that it doesn't begin with a number. 
+By default, the step creates each environment variable name from the secret name, transformed to include only uppercase letters, numbers, and underscores, and so that it doesn't begin with a number.
 
-To set the environment variable name, enter it before the secret ID, followed by a comma. For example `ENV_VAR_1, secretId` creates an environment variable named **ENV_VAR_1** from the secret `secretId`. 
+To set the environment variable name, enter it before the secret ID, followed by a comma. For example `ENV_VAR_1, secretId` creates an environment variable named **ENV_VAR_1** from the secret `secretId`. A line with an empty environment variable name but a  leading comma (ex: `, secretId`) behaves as if the entry didn't have that leading comma (ex: `secretId`) if the secret is not valid JSON or the `parse-json-secrets` flag is false.
 
 The environment variable name can consist of uppercase letters, numbers, and underscores.  
 
@@ -57,7 +57,7 @@ To use a prefix, enter at least three characters followed by an asterisk. For ex
 
 Set `parse-json-secrets` to `true` to create environment variables for each key/value pair in the JSON.
 
-Note that if the JSON uses case-sensitive keys such as "name" and "Name", the action will have duplicate name conflicts. In this case, set `parse-json-secrets` to `false` and parse the JSON secret value separately. 
+Note that if the JSON uses case-sensitive keys such as "name" and "Name", the action will have duplicate name conflicts. In this case, set `parse-json-secrets` to `false` and parse the JSON secret value separately. Additionally, if the secret is JSON and this flag is true: blank aliases are allowed and result in an environment variables with a leading underscore (see Example 4).
 ​
 ### Examples
 ​
@@ -136,6 +136,43 @@ TEST_SECRET_API_USER: "user"
 TEST_SECRET_API_KEY: "key"
 TEST_SECRET_CONFIG_ACTIVE: "true"
 ```
+
+**Example 4: Parse JSON in secret with blank alias**  
+The following example creates environment variables by parsing the JSON in the secret without assigning an alias.
+```
+- name: Get Secrets by Name and by ARN
+  uses: aws-actions/aws-secretsmanager-get-secrets@v1
+  with:
+    secret-ids: |
+      , test/blankAliasSecret
+      , test/blankAliasSecret2
+    parse-json-secrets: true
+```
+The secret `test/blankAliasSecret` has the following secret value.  
+​
+```
+{
+  "api_user": "user",
+  "api_key": "key",
+  "config": {
+    "active": "true"
+  }
+}
+```
+And secret `test/blankAliasSecret2` has the following secret value.  
+​
+```
+plaintextsecret
+```
+Environment variables created:  
+​
+```
+_API_USER: "user"
+_API_KEY: "key"
+_CONFIG_ACTIVE: "true"
+TEST_BLANKALIASSECRET2: "plaintextsecret"
+```
+If the `parse-json-secrets` flag is toggled to false; each secret is treated as a plaintext string (even if it's JSON formatted) and the behavior of `test/blankAliasSecret2` is applied for a blank alias.
 
 ## Security
 

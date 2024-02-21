@@ -205,7 +205,7 @@ export function isSecretArn(secretId: string): boolean {
 /*
  * Separates a secret alias from the secret name/arn, if one was provided
  */
-export function extractAliasAndSecretIdFromInput(input: string): [string, string] {
+export function extractAliasAndSecretIdFromInput(input: string): [undefined | string, string] {
     const parsedInput = input.split(',');
     if (parsedInput.length > 1){
         const alias = parsedInput[0].trim();
@@ -222,7 +222,7 @@ export function extractAliasAndSecretIdFromInput(input: string): [string, string
     }
 
     // No alias
-    return [ '', input.trim() ];
+    return [ undefined , input.trim() ];
 }
 
 /*

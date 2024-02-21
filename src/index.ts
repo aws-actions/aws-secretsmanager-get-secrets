@@ -6,7 +6,7 @@ import {
     getSecretValue,
     injectSecret,
     extractAliasAndSecretIdFromInput,
-    SecretValueResponse
+    SecretValueResponse, isJSONString
 } from "./utils";
 import { CLEANUP_NAME } from "./constants";
 
@@ -29,7 +29,7 @@ export async function run(): Promise<void> {
         // Get and inject secret values
         for (let secretId of secretIds) {
             //  Optionally let user set an alias, i.e. `ENV_NAME,secret_name`
-            let secretAlias = '';
+            let secretAlias: string | undefined = undefined;
             [secretAlias, secretId] = extractAliasAndSecretIdFromInput(secretId);
 
             // Retrieves the secret name also, if the value is an ARN
@@ -37,11 +37,18 @@ export async function run(): Promise<void> {
 
             try {
                 const secretValueResponse : SecretValueResponse = await getSecretValue(client, secretId);
-                if (!secretAlias){
+                const secretValue = secretValueResponse.secretValue;
+
+                // Catch if blank prefix is specified but no json is parsed to avoid blank environment variable
+                if ((secretAlias === '') && !(parseJsonSecrets && isJSONString(secretValue))) {
+                    secretAlias = undefined;
+                }
+
+                if (secretAlias === undefined) {
                     secretAlias = isArn ? secretValueResponse.name : secretId;
                 }
 
-                const injectedSecrets = injectSecret(secretAlias, secretValueResponse.secretValue, parseJsonSecrets);
+                const injectedSecrets = injectSecret(secretAlias, secretValue, parseJsonSecrets);
                 secretsToCleanup = [...secretsToCleanup, ...injectedSecrets];
             } catch (err) {
                 // Fail action for any error

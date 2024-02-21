@@ -31,6 +31,8 @@ const TEST_NAME_1 = 'test/secret1';
 const VALID_ARN_2 = 'arn:aws:secretsmanager:ap-south-1:123456789000:secret:test2-aBcdef';
 const TEST_NAME_2 = 'test/secret2';
 
+const VALID_ARN_3 = 'arn:aws:secretsmanager:ap-south-1:123456789000:secret:test3-aBcdef';
+
 const INVALID_ARN = 'aws:secretsmanager:us-east-1:123456789000:secret:test3-aBcdef';
 
 jest.mock('@actions/core');
@@ -330,9 +332,14 @@ describe('Test secret parsing and handling', () => {
         expect(extractAliasAndSecretIdFromInput(`ARN_ALIAS,${VALID_ARN_1}`)).toEqual(['ARN_ALIAS', VALID_ARN_1]);
     });
 
-    test('Returns blank for alias if none is provided', () => {
-        expect(extractAliasAndSecretIdFromInput("test/secret")).toEqual(['', 'test/secret']);
-        expect(extractAliasAndSecretIdFromInput(VALID_ARN_1)).toEqual(['', VALID_ARN_1]);
+    test('Returns undefined for alias if none is provided', () => {
+        expect(extractAliasAndSecretIdFromInput("test/secret")).toEqual([undefined, 'test/secret']);
+        expect(extractAliasAndSecretIdFromInput(VALID_ARN_1)).toEqual([undefined, VALID_ARN_1]);
+    });
+
+    test('Returns empty string for alias if none is provided, but comma delimited', () => {
+        expect(extractAliasAndSecretIdFromInput(" , test/secret")).toEqual(['', 'test/secret']);
+        expect(extractAliasAndSecretIdFromInput(" , "+VALID_ARN_3)).toEqual(['', VALID_ARN_3]);
     });
 
     test('Throws an error if the provided alias cannot be used as the environment name', () => {
