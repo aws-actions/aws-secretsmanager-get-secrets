@@ -6,13 +6,12 @@ on:
   push:
     branches:
       - main
-
+permissions:
+  id-token: write
+  contents: read
 jobs:
   tests:
     runs-on: ubuntu-latest
-    permissions:
-      id-token: write
-      contents: read
     name: Run Tests
     steps:
       - name: Checkout
