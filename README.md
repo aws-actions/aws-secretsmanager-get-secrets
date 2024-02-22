@@ -57,11 +57,7 @@ To use a prefix, enter at least three characters followed by an asterisk. For ex
 
 Set `parse-json-secrets` to `true` to create environment variables for each key/value pair in the JSON.
 
-<<<<<<< HEAD
-Note that if the JSON uses case-sensitive keys such as "name" and "Name", the action will have duplicate name conflicts. In this case, set `parse-json-secrets` to `false` and parse the JSON secret value separately. Additionally, if the secret is JSON and this flag is true: blank aliases are allowed and result in an environment variables with a leading underscore (see Example 4).
-=======
 Note that if the JSON uses case-sensitive keys such as "name" and "Name", the action will have duplicate name conflicts. In this case, set `parse-json-secrets` to `false` and parse the JSON secret value separately. Additionally, if the secret is JSON and this flag is true: blank aliases are allowed and result in environment variables with no prefix (see Example 4).
->>>>>>> 5c54aff (Updated blank alias prefixing to remove leading underscore)
 ​
 ### Examples
 ​
