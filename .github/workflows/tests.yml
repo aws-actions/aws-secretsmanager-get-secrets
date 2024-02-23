@@ -25,10 +25,10 @@ jobs:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::339713045997:role/GithubActionsRole
+          role-to-assume: arn:aws:iam::654654453185:role/GithubActionsRole
           aws-region: us-east-1
       - name: Integration Tests Act
-        uses: ./
+        uses: jirkafajfr/aws-secretsmanager-get-secrets@446750829f3ad2331c92c1d49e6bee32ddc102ef
         with:
           secret-ids: |
             SampleSecret1
