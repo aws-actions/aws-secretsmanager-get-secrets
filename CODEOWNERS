@@ -1,1 +1,4 @@
 README.md @ecraw-amzn
+*.ts @aws-actions/aws-secrets-manager-pr-br
+*.js @aws-actions/aws-secrets-manager-pr-br
+*.json @aws-actions/aws-secrets-manager-pr-br
