@@ -27,14 +27,14 @@
   },
   "homepage": "https://github.com/aws-actions/aws-secretsmanager-get-secrets#readme",
   "dependencies": {
-    "@actions/core": "^1.10.0",
+    "@actions/core": "^1.10.1",
     "@actions/github": "^6.0.0",
-    "@aws-sdk/client-secrets-manager": "^3.504.0"
+    "@aws-sdk/client-secrets-manager": "^3.523.0"
   },
   "devDependencies": {
     "@types/jest": "^29.5.12",
-    "@typescript-eslint/eslint-plugin": "^6.20.0",
-    "@typescript-eslint/parser": "^6.20.0",
+    "@typescript-eslint/eslint-plugin": "^7.1.0",
+    "@typescript-eslint/parser": "^7.1.0",
     "@vercel/ncc": "^0.38.1",
     "aws-sdk-client-mock": "^3.0.1",
     "aws-sdk-client-mock-jest": "^3.0.1",
