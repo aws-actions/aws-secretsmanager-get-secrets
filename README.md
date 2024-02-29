@@ -1,18 +1,18 @@
-# Use AWS Secrets Manager secrets in GitHub jobs<a name="retrieving-secrets_github"></a>
+# Use AWS Secrets Manager secrets in GitHub jobs
 
 To use a secret in a GitHub job, you can use a GitHub action to retrieve secrets from AWS Secrets Manager and add them as masked [Environment variables](https://docs.github.com/en/actions/learn-github-actions/environment-variables) in your GitHub workflow. For more information about GitHub Actions, see [Understanding GitHub Actions](https://docs.github.com/en/actions/learn-github-actions/understanding-github-actions) in the *GitHub Docs*.
 
 When you add a secret to your GitHub environment, it is available to all other steps in your GitHub job. Follow the guidance in [Security hardening for GitHub Actions](https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions) to help prevent secrets in your environment from being misused.
 
-You can set the entire string in the secret value as the environment variable value, or if the string is JSON, you can parse the JSON to set individual environment variables for each JSON key\-value pair. If the secret value is a binary, the action converts it to a string.
+You can set the entire string in the secret value as the environment variable value, or if the string is JSON, you can parse the JSON to set individual environment variables for each JSON key-value pair. If the secret value is a binary, the action converts it to a string.
 
 To view the environment variables created from your secrets, turn on debug logging. For more information, see [Enabling debug logging](https://docs.github.com/en/actions/monitoring-and-troubleshooting-workflows/enabling-debug-logging) in the *GitHub Docs*.
 
 To use the environment variables created from your secrets, see [Environment variables](https://docs.github.com/en/actions/learn-github-actions/environment-variables) in the *GitHub Docs*.
 
-## Prerequisites<a name="retrieving-secrets_github_prereq"></a>
+### Prerequisites
 
-To use this action, you first need to configure AWS credentials and set the AWS Region in your GitHub environment by using the `configure-aws-credentials` step. Follow the instructions in [Configure AWS Credentials Action For GitHub Actions](https://github.com/aws-actions/configure-aws-credentials) to **Assume role directly using GitHub OIDC provider**. This allows you to use short\-lived credentials and avoid storing additional access keys outside of Secrets Manager.
+To use this action, you first need to configure AWS credentials and set the AWS Region in your GitHub environment by using the `configure-aws-credentials` step. Follow the instructions in [Configure AWS Credentials Action For GitHub Actions](https://github.com/aws-actions/configure-aws-credentials) to **Assume role directly using GitHub OIDC provider**. This allows you to use short-lived credentials and avoid storing additional access keys outside of Secrets Manager.
 
 The IAM role the action assumes must have the following permissions:
 + `GetSecretValue` on the secrets you want to retrieve.
@@ -21,7 +21,7 @@ The IAM role the action assumes must have the following permissions:
 
 For more information, see [Authentication and access control for AWS Secrets Manager](auth-and-access.md).
 
-## Usage<a name="retrieving-secrets_github_usage"></a>
+### Usage
 
 To use the action, add a step to your workflow that uses the following syntax.
 
@@ -29,7 +29,7 @@ To use the action, add a step to your workflow that uses the following syntax.
 - name: Step name
   uses: aws-actions/aws-secretsmanager-get-secrets@v1
   with:
-    secret-ids:
+    secret-ids: |
       secretId1
       ENV_VAR_NAME, secretId2
     parse-json-secrets: (Optional) true|false
@@ -54,7 +54,7 @@ Set `parse-json-secrets` to `true` to create environment variables for each key/
 
 Note that if the JSON uses case-sensitive keys such as "name" and "Name", the action will have duplicate name conflicts. In this case, set `parse-json-secrets` to `false` and parse the JSON secret value separately. 
 
-## Environment variable naming<a name="retrieving-secrets_github_alias"></a>
+### Environment variable naming
 
 The environment variables created by the action are named the same as the secrets they comes from. If you parse the JSON of the secret, then the environment variable name includes both the secret name and the JSON key name, for example `MYSECRET_KEYNAME`. 
 
@@ -63,7 +63,7 @@ Environment variables have stricter naming requirements than secrets, so this ac
 You can set the environment variable name by specifying an *alias*, as shown in the following example which creates a variable named `ENV_VAR_NAME`.
 
 ```
-secret-ids:
+secret-ids: |
   ENV_VAR_NAME, secretId2
 ```
 
@@ -79,7 +79,7 @@ The following example shows a blank alias.
 ,secret2
 ```
 
-## Examples<a name="retrieving-secrets_github_examples"></a>
+### Examples
 
 **Example 1 Get secrets by name and by ARN**  
 The following example creates environment variables for secrets identified by name and by ARN.  
