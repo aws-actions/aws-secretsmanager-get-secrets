@@ -64,7 +64,7 @@ You can set the environment variable name by specifying an *alias*, as shown in 
 
 ```
 secret-ids:
-ENV_VAR_NAME, secretId2
+  ENV_VAR_NAME, secretId2
 ```
 
 **Blank aliases**
@@ -167,3 +167,11 @@ TEST_SECRET_CONFIG_ACTIVE: "true"
 MYUSERNAME: "alejandro_rosalez"
 MYPASSWORD: "EXAMPLE_PASSWORD"
 ```
+
+## Security
+
+See [CONTRIBUTING](CONTRIBUTING.md#security-issue-notifications) for more information.
+
+## License
+
+This library is licensed under the MIT-0 License. See the LICENSE file.
