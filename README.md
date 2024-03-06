@@ -56,9 +56,13 @@ Note that if the JSON uses case-sensitive keys such as "name" and "Name", the ac
 
 ### Environment variable naming
 
-The environment variables created by the action are named the same as the secrets they comes from. If you parse the JSON of the secret, then the environment variable name includes both the secret name and the JSON key name, for example `MYSECRET_KEYNAME`. 
+The environment variables created by the action are named the same as the secrets they come from. Environment variables have stricter naming requirements than secrets, so the action transforms secret names to meet those requirements. For example, the action transforms lowercase letters to uppercase letters. If you parse the JSON of the secret, then the environment variable name includes both the secret name and the JSON key name, for example `MYSECRET_KEYNAME`.
 
-Environment variables have stricter naming requirements than secrets, so this action transforms secret names to meet those requirements. For example, the action transforms lowercase letters to uppercase letters. Because of the transformed names, two environment variables might end up with the same name. For example, a secret named "MySecret" and a secret named "mysecret" would both become environment variables named "MYSECRET". In this case, the action will fail, because environment variable names must be unique. Instead, you must specify the name you want to use for the environment variable.
+If two environment variables would end up with the same name, the action fails. In this case, you must specify the names you want to use for the environment variables as *aliases*.
+
+Examples of when the names might conflict:
++ A secret named "MySecret" and a secret named "mysecret" would both become environment variables named "MYSECRET".
++ A secret named "Secret_keyname" and a JSON-parsed secret named "Secret" with a key named "keyname" would both become environment variables named "SECRET_KEYNAME".
 
 You can set the environment variable name by specifying an *alias*, as shown in the following example which creates a variable named `ENV_VAR_NAME`.
 
