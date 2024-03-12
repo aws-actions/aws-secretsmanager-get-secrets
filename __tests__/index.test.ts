@@ -32,11 +32,23 @@ const ENV_NAME_4 = 'ARN_ALIAS';
 const SECRET_4 = "secretString2";
 const TEST_ARN_INPUT = ENV_NAME_4 + "," + TEST_ARN_1;
 
+const BLANK_NAME = "test/blank";
+const SECRET_FOR_BLANK = '{"username": "integ", "password": "integpw", "config": {"id1": "example1"}}';
+const BLANK_ALIAS_INPUT = "," + BLANK_NAME;
+
+const BLANK_NAME_2 = "test/blank2";
+const SECRET_FOR_BLANK_2 = "blankNameSecretString";
+const BLANK_ALIAS_INPUT_2 = "," + BLANK_NAME_2;
+
+const BLANK_NAME_3 = "test/blank3";
+const SECRET_FOR_BLANK_3 = '{"username": "integ", "password": "integpw", "config": {"id2": "example2"}}';
+const BLANK_ALIAS_INPUT_3 = "," + BLANK_NAME_3;
+
 // Mock the inputs for Github action
 jest.mock('@actions/core', () => {
     return {
-        getMultilineInput: jest.fn((name: string, options?: core.InputOptions) =>  [TEST_NAME, TEST_INPUT_3, TEST_ARN_INPUT] ),
-        getBooleanInput: jest.fn((name: string, options?: core.InputOptions) => true),
+        getMultilineInput: jest.fn(),
+        getBooleanInput: jest.fn(),
         setFailed: jest.fn(),
         info: jest.fn(),
         debug: jest.fn(),
@@ -59,6 +71,11 @@ describe('Test main action', () => {
     });
 
     test('Retrieves and sets the requested secrets as environment variables, parsing JSON', async () => {
+        const booleanSpy = jest.spyOn(core, "getBooleanInput").mockReturnValue(true);
+        const multilineInputSpy = jest.spyOn(core, "getMultilineInput").mockReturnValue(
+            [TEST_NAME, TEST_INPUT_3, TEST_ARN_INPUT, BLANK_ALIAS_INPUT]
+        );
+
         // Mock all Secrets Manager calls
         smMockClient
             .on(GetSecretValueCommand, { SecretId: TEST_NAME_1})
@@ -84,10 +101,12 @@ describe('Test main action', () => {
                         Name: TEST_NAME_2
                     }
                 ]
-            });
+            })
+            .on(GetSecretValueCommand, { SecretId: BLANK_NAME })
+            .resolves({ Name: BLANK_NAME, SecretString: SECRET_FOR_BLANK });
 
         await run();
-        expect(core.exportVariable).toHaveBeenCalledTimes(7);
+        expect(core.exportVariable).toHaveBeenCalledTimes(10);
         expect(core.setFailed).not.toHaveBeenCalled();
 
         // JSON secrets should be parsed
@@ -99,17 +118,81 @@ describe('Test main action', () => {
         expect(core.exportVariable).toHaveBeenCalledWith(ENV_NAME_3, SECRET_3);
         expect(core.exportVariable).toHaveBeenCalledWith(ENV_NAME_4, SECRET_4);
 
-        expect(core.exportVariable).toHaveBeenCalledWith(CLEANUP_NAME, JSON.stringify(['TEST_ONE_USER', 'TEST_ONE_PASSWORD', 'TEST_TWO_USER', 'TEST_TWO_PASSWORD', ENV_NAME_3, ENV_NAME_4]));
+        // Case when alias is blank, but still comma delimited in workflow and json is parsed
+        // ex: ,test5/secret
+        expect(core.exportVariable).toHaveBeenCalledWith("USERNAME", "integ");
+        expect(core.exportVariable).toHaveBeenCalledWith("PASSWORD", "integpw");
+        expect(core.exportVariable).toHaveBeenCalledWith("CONFIG_ID1", "example1");
+
+        expect(core.exportVariable).toHaveBeenCalledWith(
+            CLEANUP_NAME,
+            JSON.stringify([
+                'TEST_ONE_USER', 'TEST_ONE_PASSWORD',
+                'TEST_TWO_USER', 'TEST_TWO_PASSWORD',
+                ENV_NAME_3,
+                ENV_NAME_4,
+                "USERNAME", "PASSWORD", "CONFIG_ID1"
+            ])
+        );
+
+        booleanSpy.mockClear();
+        multilineInputSpy.mockClear();
+    });
+
+    test('Defaults to correct behavior with empty string alias', async () => {
+        const booleanSpy = jest.spyOn(core, "getBooleanInput").mockReturnValue(false);
+        const multilineInputSpy = jest.spyOn(core, "getMultilineInput").mockReturnValue(
+            [BLANK_ALIAS_INPUT_2, BLANK_ALIAS_INPUT_3]
+        );
+
+        smMockClient
+            .on(GetSecretValueCommand, { SecretId: BLANK_NAME_2 })
+            .resolves({ Name: BLANK_NAME_2, SecretString: SECRET_FOR_BLANK_2 })
+            .on(GetSecretValueCommand, { SecretId: BLANK_NAME_3 })
+            .resolves({ Name: BLANK_NAME_3, SecretString: SECRET_FOR_BLANK_3 });
+
+        await run();
+        expect(core.exportVariable).toHaveBeenCalledTimes(3);
+        expect(core.setFailed).not.toHaveBeenCalled();
+
+        // Case when alias is blank, but still comma delimited in workflow and no json is parsed
+        // ex: ,test/blank2
+        expect(core.exportVariable).toHaveBeenCalledWith("TEST_BLANK2", "blankNameSecretString");
+        expect(core.exportVariable).toHaveBeenCalledWith("TEST_BLANK3", '{"username": "integ", "password": "integpw", "config": {"id2": "example2"}}');
+
+        expect(core.exportVariable).toHaveBeenCalledWith(
+            CLEANUP_NAME,
+            JSON.stringify([
+                "TEST_BLANK2",
+                "TEST_BLANK3"
+            ])
+        );
+
+        booleanSpy.mockClear();
+        multilineInputSpy.mockClear();
     });
 
     test('Fails the action when an error occurs in Secrets Manager', async () => {
+        const booleanSpy = jest.spyOn(core, "getBooleanInput").mockReturnValue(true);
+        const multilineInputSpy = jest.spyOn(core, "getMultilineInput").mockReturnValue(
+            [TEST_NAME, TEST_INPUT_3, TEST_ARN_INPUT]
+        );
+
         smMockClient.onAnyCommand().resolves({});
 
         await run();
         expect(core.setFailed).toHaveBeenCalledTimes(1);
+
+        booleanSpy.mockClear();
+        multilineInputSpy.mockClear();
     });
 
     test('Fails the action when multiple secrets exported the same variable name', async () => {
+        const booleanSpy = jest.spyOn(core, "getBooleanInput").mockReturnValue(true);
+        const multilineInputSpy = jest.spyOn(core, "getMultilineInput").mockReturnValue(
+            [TEST_NAME, TEST_INPUT_3, TEST_ARN_INPUT]
+        );
+
         smMockClient
             .on(GetSecretValueCommand, { SecretId: TEST_NAME_1})
             .resolves({ Name: TEST_NAME_1, SecretString: SECRET_1 })
@@ -140,5 +223,8 @@ describe('Test main action', () => {
 
         await run();
         expect(core.setFailed).toHaveBeenCalledTimes(1);
+
+        booleanSpy.mockClear();
+        multilineInputSpy.mockClear();
     });
 });
