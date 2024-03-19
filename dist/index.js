@@ -34663,6 +34663,9 @@ function httpRedirectFetch (fetchParams, response) {
     // https://fetch.spec.whatwg.org/#cors-non-wildcard-request-header-name
     request.headersList.delete('authorization')
 
+    // https://fetch.spec.whatwg.org/#authentication-entries
+    request.headersList.delete('proxy-authorization', true)
+
     // "Cookie" and "Host" are forbidden request-headers, which undici doesn't implement.
     request.headersList.delete('cookie')
     request.headersList.delete('host')
@@ -45543,16 +45546,21 @@ function run() {
             // Get and inject secret values
             for (let secretId of secretIds) {
                 //  Optionally let user set an alias, i.e. `ENV_NAME,secret_name`
-                let secretAlias = '';
+                let secretAlias = undefined;
                 [secretAlias, secretId] = (0, utils_1.extractAliasAndSecretIdFromInput)(secretId);
                 // Retrieves the secret name also, if the value is an ARN
                 const isArn = (0, utils_1.isSecretArn)(secretId);
                 try {
                     const secretValueResponse = yield (0, utils_1.getSecretValue)(client, secretId);
-                    if (!secretAlias) {
+                    const secretValue = secretValueResponse.secretValue;
+                    // Catch if blank prefix is specified but no json is parsed to avoid blank environment variable
+                    if ((secretAlias === '') && !(parseJsonSecrets && (0, utils_1.isJSONString)(secretValue))) {
+                        secretAlias = undefined;
+                    }
+                    if (secretAlias === undefined) {
                         secretAlias = isArn ? secretValueResponse.name : secretId;
                     }
-                    const injectedSecrets = (0, utils_1.injectSecret)(secretAlias, secretValueResponse.secretValue, parseJsonSecrets);
+                    const injectedSecrets = (0, utils_1.injectSecret)(secretAlias, secretValue, parseJsonSecrets);
                     secretsToCleanup = [...secretsToCleanup, ...injectedSecrets];
                 }
                 catch (err) {
@@ -45739,8 +45747,13 @@ function injectSecret(secretName, secretValue, parseJsonSecrets, tempEnvName) {
         const secretMap = JSON.parse(secretValue);
         for (const k in secretMap) {
             const keyValue = typeof secretMap[k] === 'string' ? secretMap[k] : JSON.stringify(secretMap[k]);
-            // Append the current key to the name of the env variable
-            const newEnvName = `${tempEnvName || transformToValidEnvName(secretName)}_${transformToValidEnvName(k)}`;
+            // Append the current key to the name of the env variable and check to avoid prepending an underscore
+            const newEnvName = [
+                tempEnvName || transformToValidEnvName(secretName),
+                transformToValidEnvName(k)
+            ]
+                .filter(elem => elem) // Uses truthy-ness of elem to determine if it remains
+                .join("_"); // Join the remaining elements with an underscore
             secretsToCleanup = [...secretsToCleanup, ...injectSecret(secretName, keyValue, parseJsonSecrets, newEnvName)];
         }
     }
@@ -45816,7 +45829,7 @@ function extractAliasAndSecretIdFromInput(input) {
         return [alias, secretId];
     }
     // No alias
-    return ['', input.trim()];
+    return [undefined, input.trim()];
 }
 exports.extractAliasAndSecretIdFromInput = extractAliasAndSecretIdFromInput;
 /*

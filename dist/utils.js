@@ -157,8 +157,13 @@ function injectSecret(secretName, secretValue, parseJsonSecrets, tempEnvName) {
         const secretMap = JSON.parse(secretValue);
         for (const k in secretMap) {
             const keyValue = typeof secretMap[k] === 'string' ? secretMap[k] : JSON.stringify(secretMap[k]);
-            // Append the current key to the name of the env variable
-            const newEnvName = `${tempEnvName || transformToValidEnvName(secretName)}_${transformToValidEnvName(k)}`;
+            // Append the current key to the name of the env variable and check to avoid prepending an underscore
+            const newEnvName = [
+                tempEnvName || transformToValidEnvName(secretName),
+                transformToValidEnvName(k)
+            ]
+                .filter(elem => elem) // Uses truthy-ness of elem to determine if it remains
+                .join("_"); // Join the remaining elements with an underscore
             secretsToCleanup = [...secretsToCleanup, ...injectSecret(secretName, keyValue, parseJsonSecrets, newEnvName)];
         }
     }
@@ -234,7 +239,7 @@ function extractAliasAndSecretIdFromInput(input) {
         return [alias, secretId];
     }
     // No alias
-    return ['', input.trim()];
+    return [undefined, input.trim()];
 }
 exports.extractAliasAndSecretIdFromInput = extractAliasAndSecretIdFromInput;
 /*
