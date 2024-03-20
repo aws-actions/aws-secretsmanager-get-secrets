@@ -141,7 +141,7 @@ The following example creates environment variables by parsing the JSON in the s
     secret-ids: |
       test/secret
       ,secret2
-      parse-json-secrets: true
+    parse-json-secrets: true
 ```
 The secret `test/secret` has the following secret value.  
 
