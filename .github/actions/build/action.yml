@@ -1,0 +1,27 @@
+name: Builds
+description: Builds the repository and assumes the AWS IAM role for testing
+runs:
+  using: composite
+  steps:
+    - name: Install dependencies
+      run: npm ci
+      shell: bash
+    - name: Build the dist folder
+      run: npm run build
+      shell: bash
+    - name: Determine role to assume
+      id: role-to-assume
+      run: |
+        if [ "${{ github.repository_owner }}" == "aws-actions" ]; then
+          # Use prod role for the PRs running against the main repo
+          echo "arn=arn:aws:iam::339713045997:role/GithubActionsRole" >> "$GITHUB_OUTPUT"
+        else
+          # Use beta role for the PRs running against engineer forks
+          echo "arn=arn:aws:iam::654654453185:role/GithubActionsRole" >> "$GITHUB_OUTPUT"
+        fi
+      shell: bash
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: ${{ steps.role-to-assume.outputs.arn }}
+        aws-region: us-east-1

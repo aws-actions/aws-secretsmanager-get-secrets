@@ -14,10 +14,11 @@ import {
     injectSecret,
     isSecretArn,
     extractAliasAndSecretIdFromInput,
-    transformToValidEnvName
+    transformToValidEnvName,
+    parseNameTransformation
 } from "../src/utils";
 
-import { CLEANUP_NAME, LIST_SECRETS_MAX_RESULTS } from "../src/constants";
+import { CLEANUP_NAME, LIST_SECRETS_MAX_RESULTS, NameTransformation } from "../src/constants";
 
 const TEST_NAME = 'test/secret';
 const TEST_ENV_NAME = 'TEST_SECRET';
@@ -368,7 +369,15 @@ describe('Test secret parsing and handling', () => {
     });
 
     test('Transforms to uppercase for environment name', () => {
-        expect(transformToValidEnvName('secret3')).toBe('SECRET3')
+        expect(transformToValidEnvName('secret3', NameTransformation.Uppercase)).toBe('SECRET3')
+    });
+
+    test('Transforms to lowercase for environment name', () => {
+        expect(transformToValidEnvName('Secret3', NameTransformation.Lowercase)).toBe('secret3')
+    });
+
+    test('Performs no transformation on the environment name', () => {
+        expect(transformToValidEnvName('Secret3', NameTransformation.None)).toBe('Secret3')
     });
 
     /* 
@@ -400,5 +409,18 @@ describe('Test secret parsing and handling', () => {
 
     test('Test valid nested JSON { "a": "yes", "options": { "opt_a": "yes", "opt_b": "no"} } ', () => {
         expect(isJSONString('{ "a": "yes", "options": { "opt_a": "yes", "opt_b": "no"} }')).toBe(true)
+    });
+
+    test.each([
+        [ 'Uppercase', NameTransformation.Uppercase ],
+        [ 'uppercase', NameTransformation.Uppercase ],
+        [ 'lowErCase', NameTransformation.Lowercase ],
+        [ 'none', NameTransformation.None ]
+    ])('NameTransformation parsing of string %s should pass.', (input, output) => {
+        expect(parseNameTransformation(input)).toBe(output)
+    });
+
+    test.each([ 'something', '' ])('NameTransformation parsing of string %s should fail.', (input) => {
+        expect(() => parseNameTransformation(input));//.toThrow();
     });
 });
