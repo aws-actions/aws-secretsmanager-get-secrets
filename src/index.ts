@@ -6,7 +6,8 @@ import {
     getSecretValue,
     injectSecret,
     extractAliasAndSecretIdFromInput,
-    SecretValueResponse, isJSONString
+    SecretValueResponse, isJSONString,
+    parseTransformationFunction
 } from "./utils";
 import { CLEANUP_NAME } from "./constants";
 
@@ -16,10 +17,11 @@ export async function run(): Promise<void> {
         const client : SecretsManagerClient = new SecretsManagerClient({region: process.env.AWS_DEFAULT_REGION, customUserAgent: "github-action"});
         const secretConfigInputs: string[] = [...new Set(core.getMultilineInput('secret-ids'))];
         const parseJsonSecrets = core.getBooleanInput('parse-json-secrets');
+        const nameTransformation = parseTransformationFunction(core.getInput('name-transformation'));
 
         // Get final list of secrets to request
         core.info('Building secrets list...');
-        const secretIds: string[] = await buildSecretsList(client, secretConfigInputs);
+        const secretIds: string[] = await buildSecretsList(client, secretConfigInputs, nameTransformation);
 
         // Keep track of secret names that will need to be cleaned from the environment
         let secretsToCleanup = [] as string[];
@@ -30,7 +32,7 @@ export async function run(): Promise<void> {
         for (let secretId of secretIds) {
             //  Optionally let user set an alias, i.e. `ENV_NAME,secret_name`
             let secretAlias: string | undefined = undefined;
-            [secretAlias, secretId] = extractAliasAndSecretIdFromInput(secretId);
+            [secretAlias, secretId] = extractAliasAndSecretIdFromInput(secretId, nameTransformation);
 
             // Retrieves the secret name also, if the value is an ARN
             const isArn = isSecretArn(secretId);
@@ -48,7 +50,7 @@ export async function run(): Promise<void> {
                     secretAlias = isArn ? secretValueResponse.name : secretId;
                 }
 
-                const injectedSecrets = injectSecret(secretAlias, secretValue, parseJsonSecrets);
+                const injectedSecrets = injectSecret(secretAlias, secretValue, parseJsonSecrets, nameTransformation);
                 secretsToCleanup = [...secretsToCleanup, ...injectedSecrets];
             } catch (err) {
                 // Fail action for any error

@@ -12,6 +12,10 @@ inputs:
     description: '(Optional) If true, JSON secrets will be deserialized, creating a secret environment variable for each key-value pair.'
     required: false
     default: 'false'
+  name-transformation:
+    description: '(Optional) Transforms environment variable name. Options: uppercase, lowercase, none. Default value: uppercase.'
+    required: false
+    default: 'uppercase'
 runs:
   using: 'node20'
   main: 'dist/index.js'

@@ -49,6 +49,7 @@ jest.mock('@actions/core', () => {
     return {
         getMultilineInput: jest.fn(),
         getBooleanInput: jest.fn(),
+        getInput: jest.fn(),
         setFailed: jest.fn(),
         info: jest.fn(),
         debug: jest.fn(),
@@ -75,6 +76,7 @@ describe('Test main action', () => {
         const multilineInputSpy = jest.spyOn(core, "getMultilineInput").mockReturnValue(
             [TEST_NAME, TEST_INPUT_3, TEST_ARN_INPUT, BLANK_ALIAS_INPUT]
         );
+        const nameTransformationSpy = jest.spyOn(core, 'getInput').mockReturnValue('uppercase');
 
         // Mock all Secrets Manager calls
         smMockClient
@@ -106,8 +108,8 @@ describe('Test main action', () => {
             .resolves({ Name: BLANK_NAME, SecretString: SECRET_FOR_BLANK });
 
         await run();
-        expect(core.exportVariable).toHaveBeenCalledTimes(10);
         expect(core.setFailed).not.toHaveBeenCalled();
+        expect(core.exportVariable).toHaveBeenCalledTimes(10);
 
         // JSON secrets should be parsed
         expect(core.exportVariable).toHaveBeenCalledWith('TEST_ONE_USER', 'admin');
@@ -137,6 +139,7 @@ describe('Test main action', () => {
 
         booleanSpy.mockClear();
         multilineInputSpy.mockClear();
+        nameTransformationSpy.mockClear();
     });
 
     test('Defaults to correct behavior with empty string alias', async () => {
@@ -152,8 +155,8 @@ describe('Test main action', () => {
             .resolves({ Name: BLANK_NAME_3, SecretString: SECRET_FOR_BLANK_3 });
 
         await run();
-        expect(core.exportVariable).toHaveBeenCalledTimes(3);
         expect(core.setFailed).not.toHaveBeenCalled();
+        expect(core.exportVariable).toHaveBeenCalledTimes(3);
 
         // Case when alias is blank, but still comma delimited in workflow and no json is parsed
         // ex: ,test/blank2
@@ -192,6 +195,7 @@ describe('Test main action', () => {
         const multilineInputSpy = jest.spyOn(core, "getMultilineInput").mockReturnValue(
             [TEST_NAME, TEST_INPUT_3, TEST_ARN_INPUT]
         );
+        const nameTransformationSpy = jest.spyOn(core, 'getInput').mockReturnValue('uppercase');
 
         smMockClient
             .on(GetSecretValueCommand, { SecretId: TEST_NAME_1})
@@ -226,5 +230,6 @@ describe('Test main action', () => {
 
         booleanSpy.mockClear();
         multilineInputSpy.mockClear();
+        nameTransformationSpy.mockClear();
     });
 });
