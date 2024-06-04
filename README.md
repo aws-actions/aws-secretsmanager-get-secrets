@@ -32,6 +32,7 @@ To use the action, add a step to your workflow that uses the following syntax.
     secret-ids: |
       secretId1
       ENV_VAR_NAME, secretId2
+    name-transformation: (Optional) uppercase|lowercase|none
     parse-json-secrets: (Optional) true|false
 ```
 Parameters
@@ -45,6 +46,10 @@ To set the environment variable name, enter it before the secret ID, followed by
 The environment variable name can consist of uppercase letters, numbers, and underscores. 
 
 To use a prefix, enter at least three characters followed by an asterisk. For example `dev*` matches all secrets with a name beginning in **dev**. The maximum number of matching secrets that can be retrieved is 100. If you set the variable name, and the prefix matches multiple secrets, then the action fails.
+
+- `name-transformation`
+
+By default, the step creates each environment variable name from the secret name, transformed to include only uppercase letters, numbers, and underscores, and so that it doesn't begin with a number. For the letters in the name, you can configure the step to use lowercase letters with `lowercase` or to not change the case of the letters with `none`. The default value is `uppercase`.
 
 - `parse-json-secrets`
 
@@ -170,6 +175,23 @@ TEST_SECRET_API_KEY: "key"
 TEST_SECRET_CONFIG_ACTIVE: "true"
 MYUSERNAME: "alejandro_rosalez"
 MYPASSWORD: "EXAMPLE_PASSWORD"
+```
+
+**Example 4 Use lowercase letters for environment variable names**
+The following example creates an environment variable with a lowercase name.
+
+```
+- name: Get secrets
+  uses: aws-actions/aws-secretsmanager-get-secrets@v2
+  with:
+    secret-ids: exampleSecretName
+    name-transformation: lowercase
+```
+
+Environment variable created:
+
+```
+examplesecretname: secretValue
 ```
 
 ## Security
