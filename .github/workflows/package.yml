@@ -21,7 +21,8 @@ jobs:
           npm run build
       - name: Commit
         run: |
-          git config --global user.name "GitHub Actions"
+          git config user.name "$(git log -n 1 --pretty=format:%an)"
+          git config user.email "$(git log -n 1 --pretty=format:%ae)"
           git add dist/
           git commit -m "chore: Update dist" || echo "No changes to commit"
           git push origin HEAD:main
