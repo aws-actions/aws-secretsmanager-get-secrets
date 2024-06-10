@@ -31076,15 +31076,7 @@ const baseMatchers = {
             check: ({ commandCalls }) => {
                 const matchCount = commandCalls
                     .map(call => call.args[0].input) // eslint-disable-line @typescript-eslint/no-unsafe-return
-                    .map(received => {
-                    try {
-                        (0, expect_1.expect)(received).toEqual(expect_1.expect.objectContaining(input));
-                        return true;
-                    }
-                    catch (e) {
-                        return false;
-                    }
-                })
+                    .map(received => this.equals(received, expect_1.expect.objectContaining(input)))
                     .reduce((acc, val) => acc + Number(val), 0);
                 return { pass: matchCount > 0, data: { matchCount } };
             },
@@ -31111,12 +31103,7 @@ const baseMatchers = {
                 const received = calls[call - 1].args[0];
                 let pass = false;
                 if (received instanceof command) {
-                    try {
-                        (0, expect_1.expect)(received.input).toEqual(expect_1.expect.objectContaining(input));
-                        pass = true;
-                    }
-                    catch (e) { // eslint-disable-line no-empty
-                    }
+                    pass = this.equals(received.input, expect_1.expect.objectContaining(input));
                 }
                 return {
                     pass,
@@ -31151,12 +31138,7 @@ const baseMatchers = {
                 const received = commandCalls[call - 1].args[0];
                 let pass = false;
                 if (received instanceof command) {
-                    try {
-                        (0, expect_1.expect)(received.input).toEqual(expect_1.expect.objectContaining(input));
-                        pass = true;
-                    }
-                    catch (e) { // eslint-disable-line no-empty
-                    }
+                    pass = this.equals(received.input, expect_1.expect.objectContaining(input));
                 }
                 return {
                     pass,
@@ -31282,10 +31264,42 @@ class AwsStub {
             return isProperType && inputMatches;
         });
     }
+    /**
+     * Allows specifying the behavior for any Command with given input (parameters).
+     *
+     * If the input is not specified, the given behavior will be used for any Command with any input.
+     *
+     * Calling `onAnyCommand()` without parameters is not required to specify the default behavior for any Command,
+     * but can be used for readability.
+     *
+     * @example
+     * ```js
+     * clientMock.onAnyCommand().resolves({})
+     * ```
+     *
+     * @param input Command payload to match
+     * @param strict Should the payload match strictly (default false, will match if all defined payload properties match)
+     */
     onAnyCommand(input, strict = false) {
         const cmdStub = this.send.withArgs(this.createInputMatcher(input, strict));
         return new CommandBehavior(this, cmdStub);
     }
+    /**
+     * Allows specifying the behavior for a given Command type and its input (parameters).
+     *
+     * If the input is not specified, it will match any Command of that type.
+     *
+     * @example
+     * ```js
+     * snsMock
+     *   .on(PublishCommand, {Message: 'My message'})
+     *   .resolves({MessageId: '111'});
+     * ```
+     *
+     * @param command Command type to match
+     * @param input Command payload to match
+     * @param strict Should the payload match strictly (default false, will match if all defined payload properties match)
+     */
     on(command, input, strict = false) {
         const matcher = sinon_1.match.instanceOf(command).and(this.createInputMatcher(input, strict));
         const cmdStub = this.send.withArgs(matcher);
@@ -31296,21 +31310,129 @@ class AwsStub {
             sinon_1.match.has('input', strict ? input : (0, sinon_1.match)(input))
             : sinon_1.match.any;
     }
+    /**
+     * Sets a successful response that will be returned from any `Client#send()` invocation.
+     *
+     * @example
+     * ```js
+     * snsMock
+     *   .resolves({MessageId: '111'});
+     * ```
+     *
+     * @param response Content to be returned
+     */
     resolves(response) {
         return this.onAnyCommand().resolves(response);
     }
+    /**
+     * Sets a successful response that will be returned from one `Client#send()` invocation.
+     *
+     * Can be chained so that successive invocations return different responses. When there are no more
+     * `resolvesOnce()` responses to use, invocations will return a response specified by `resolves()`.
+     *
+     * @example
+     * ```js
+     * snsMock
+     *   .resolvesOnce({MessageId: '111'}) // first call
+     *   .resolvesOnce({MessageId: '222'}) // second call
+     *   .resolves({MessageId: '333'}); // default
+     * ```
+     *
+     * @param response Content to be returned
+     */
     resolvesOnce(response) {
         return this.onAnyCommand().resolvesOnce(response);
     }
+    /**
+     * Sets a failure response that will be returned from any `Client#send()` invocation.
+     * The response will always be an `Error` instance.
+     *
+     * @example
+     * ```js
+     * snsMock
+     *   .rejects('mocked rejection');
+     *```
+     *
+     * @example
+     * ```js
+     * const throttlingError = new Error('mocked rejection');
+     * throttlingError.name = 'ThrottlingException';
+     * snsMock
+     *   .rejects(throttlingError);
+     * ```
+     *
+     * @param error Error text, Error instance or Error parameters to be returned
+     */
     rejects(error) {
         return this.onAnyCommand().rejects(error);
     }
+    /**
+     * Sets a failure response that will be returned from one `Client#send()` invocation.
+     * The response will always be an `Error` instance.
+     *
+     * Can be chained so that successive invocations return different responses. When there are no more
+     * `rejectsOnce()` responses to use, invocations will return a response specified by `rejects()`.
+     *
+     * @example
+     * ```js
+     * snsMock
+     *   .rejectsOnce('first mocked rejection')
+     *   .rejectsOnce('second mocked rejection')
+     *   .rejects('default mocked rejection');
+     * ```
+     *
+     * @param error Error text, Error instance or Error parameters to be returned
+     */
     rejectsOnce(error) {
         return this.onAnyCommand().rejectsOnce(error);
     }
+    /**
+     * Sets a function that will be called on any `Client#send()` invocation.
+     *
+     * @example
+     * ```js
+     * snsMock
+     *   .callsFake(input => {
+     *     if (input.Message === 'My message') {
+     *       return {MessageId: '111'};
+     *     } else {
+     *       throw new Error('mocked rejection');
+     *     }
+     *   });
+     * ```
+     *
+     * @example
+     * Result based on the `Client` configuration:
+     * ```js
+     * snsMock
+     *   .callsFake(async (input, getClient) => {
+     *     const client = getClient();
+     *     const region = await client.config.region();
+     *     return {MessageId: region.substring(0, 2)};
+     *   });
+     * ```
+     *
+     * @param fn Function taking Command input and returning result
+     */
     callsFake(fn) {
         return this.onAnyCommand().callsFake(fn);
     }
+    /**
+     * Sets a function that will be called once, on any `Client#send()` invocation.
+     *
+     * Can be chained so that successive invocations call different functions. When there are no more
+     * `callsFakeOnce()` functions to use, invocations will call a function specified by `callsFake()`.
+     *
+     * @example
+     * ```js
+     * snsMock
+     *   .callsFakeOnce(cmd => {MessageId: '111'}) // first call
+     *   .callsFakeOnce(cmd => {MessageId: '222'}) // second call
+     *   .callsFake(cmd => {MessageId: '000'}); // default
+     * ```
+     *
+     * @param fn Function taking Command input and returning result
+     */
     callsFakeOnce(fn) {
         return this.onAnyCommand().callsFakeOnce(fn);
     }
@@ -31332,24 +31454,101 @@ class CommandBehavior {
          */
         this.getClient = () => this.send.thisValues[this.send.thisValues.length - 1];
     }
+    /**
+     * @deprecated Using this method means that the previously set `.on(Command)` was not followed by  resolves/rejects/callsFake call.
+     * If this is legitimate behavior, please open an issue with your use case.
+     */
     onAnyCommand(input, strict) {
         return this.clientStub.onAnyCommand(input, strict);
     }
+    /**
+     * @deprecated Using this method means that the previously set `.on(Command)` was not followed by  resolves/rejects/callsFake call.
+     * If this is legitimate behavior, please open an issue with your use case.
+     */
     on(command, input, strict = false) {
         return this.clientStub.on(command, input, strict);
     }
+    /**
+     * Sets a successful response that will be returned from `Client#send()` invocation for the current `Command`.
+     *
+     * @example
+     * ```js
+     * snsMock
+     *   .on(PublishCommand)
+     *   .resolves({MessageId: '111'});
+     * ```
+     *
+     * @param response Content to be returned
+     */
     resolves(response) {
         this.send.resolves(response);
         return this.clientStub;
     }
+    /**
+     * Sets a successful response that will be returned from one `Client#send()` invocation for the current `Command`.
+     *
+     * Can be chained so that successive invocations return different responses. When there are no more
+     * `resolvesOnce()` responses to use, invocations will return a response specified by `resolves()`.
+     *
+     * @example
+     * ```js
+     * snsMock
+     *   .on(PublishCommand)
+     *   .resolvesOnce({MessageId: '111'}) // first call
+     *   .resolvesOnce({MessageId: '222'}) // second call
+     *   .resolves({MessageId: '333'}); // default
+     * ```
+     *
+     * @param response Content to be returned
+     */
     resolvesOnce(response) {
         this.send = this.send.onCall(this.nextChainableCallNumber++).resolves(response);
         return this;
     }
+    /**
+     * Sets a failure response that will be returned from `Client#send()` invocation for the current `Command`.
+     * The response will always be an `Error` instance.
+     *
+     * @example
+     * ```js
+     * snsMock
+     *   .on(PublishCommand)
+     *   .rejects('mocked rejection');
+     *```
+     *
+     * @example
+     * ```js
+     * const throttlingError = new Error('mocked rejection');
+     * throttlingError.name = 'ThrottlingException';
+     * snsMock
+     *   .on(PublishCommand)
+     *   .rejects(throttlingError);
+     * ```
+     *
+     * @param error Error text, Error instance or Error parameters to be returned
+     */
     rejects(error) {
         this.send.rejects(CommandBehavior.normalizeError(error));
         return this.clientStub;
     }
+    /**
+     * Sets a failure response that will be returned from one `Client#send()` invocation for the current `Command`.
+     * The response will always be an `Error` instance.
+     *
+     * Can be chained so that successive invocations return different responses. When there are no more
+     * `rejectsOnce()` responses to use, invocations will return a response specified by `rejects()`.
+     *
+     * @example
+     * ```js
+     * snsMock
+     *   .on(PublishCommand)
+     *   .rejectsOnce('first mocked rejection')
+     *   .rejectsOnce('second mocked rejection')
+     *   .rejects('default mocked rejection');
+     * ```
+     *
+     * @param error Error text, Error instance or Error parameters to be returned
+     */
     rejectsOnce(error) {
         this.send.onCall(this.nextChainableCallNumber++).rejects(CommandBehavior.normalizeError(error));
         return this;
@@ -31363,10 +31562,57 @@ class CommandBehavior {
         }
         return error;
     }
+    /**
+     * Sets a function that will be called on `Client#send()` invocation for the current `Command`.
+     *
+     * @example
+     * ```js
+     * snsMock
+     *   .on(PublishCommand)
+     *   .callsFake(input => {
+     *     if (input.Message === 'My message') {
+     *       return {MessageId: '111'};
+     *     } else {
+     *       throw new Error('mocked rejection');
+     *     }
+     *   });
+     * ```
+     *
+     * @example
+     * Result based on the `Client` configuration:
+     * ```js
+     * snsMock
+     *   .on(PublishCommand)
+     *   .callsFake(async (input, getClient) => {
+     *     const client = getClient();
+     *     const region = await client.config.region();
+     *     return {MessageId: region.substring(0, 2)};
+     *   });
+     * ```
+     *
+     * @param fn Function taking Command input and returning result
+     */
     callsFake(fn) {
         this.send.callsFake(cmd => this.fakeFnWrapper(cmd, fn));
         return this.clientStub;
     }
+    /**
+     * Sets a function that will be called once on `Client#send()` invocation  for the current `Command`.
+     *
+     * Can be chained so that successive invocations call different functions. When there are no more
+     * `callsFakeOnce()` functions to use, invocations will call a function specified by `callsFake()`.
+     *
+     * @example
+     * ```js
+     * snsMock
+     *   .on(PublishCommand)
+     *   .callsFakeOnce(cmd => {MessageId: '111'}) // first call
+     *   .callsFakeOnce(cmd => {MessageId: '222'}) // second call
+     *   .callsFake(cmd => {MessageId: '000'}); // default
+     * ```
+     *
+     * @param fn Function taking Command input and returning result
+     */
     callsFakeOnce(fn) {
         this.send.onCall(this.nextChainableCallNumber++).callsFake(cmd => this.fakeFnWrapper(cmd, fn));
         return this;
