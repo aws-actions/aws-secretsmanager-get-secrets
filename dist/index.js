@@ -23150,7 +23150,7 @@ __name(requestTimeout, "requestTimeout");
 
 // src/fetch-http-handler.ts
 var keepAliveSupport = {
-  supported: Boolean(typeof Request !== "undefined" && "keepalive" in new Request("https://[::1]"))
+  supported: void 0
 };
 var _FetchHttpHandler = class _FetchHttpHandler {
   /**
@@ -23169,6 +23169,11 @@ var _FetchHttpHandler = class _FetchHttpHandler {
     } else {
       this.config = options ?? {};
       this.configProvider = Promise.resolve(this.config);
+    }
+    if (keepAliveSupport.supported === void 0) {
+      keepAliveSupport.supported = Boolean(
+        typeof Request !== "undefined" && "keepalive" in new Request("https://[::1]")
+      );
     }
   }
   destroy() {
@@ -23248,11 +23253,16 @@ var _FetchHttpHandler = class _FetchHttpHandler {
     if (abortSignal) {
       raceOfPromises.push(
         new Promise((resolve, reject) => {
-          abortSignal.onabort = () => {
+          const onAbort = /* @__PURE__ */ __name(() => {
             const abortError = new Error("Request aborted");
             abortError.name = "AbortError";
             reject(abortError);
-          };
+          }, "onAbort");
+          if (typeof abortSignal.addEventListener === "function") {
+            abortSignal.addEventListener("abort", onAbort);
+          } else {
+            abortSignal.onabort = onAbort;
+          }
         })
       );
     }
@@ -25662,10 +25672,12 @@ var _NodeHttpHandler = class _NodeHttpHandler {
    * @internal
    *
    * @param agent - http(s) agent in use by the NodeHttpHandler instance.
+   * @param socketWarningTimestamp - last socket usage check timestamp.
+   * @param logger - channel for the warning.
    * @returns timestamp of last emitted warning.
    */
-  static checkSocketUsage(agent, socketWarningTimestamp) {
-    var _a, _b;
+  static checkSocketUsage(agent, socketWarningTimestamp, logger = console) {
+    var _a, _b, _c;
     const { sockets, requests, maxSockets } = agent;
     if (typeof maxSockets !== "number" || maxSockets === Infinity) {
       return socketWarningTimestamp;
@@ -25679,11 +25691,11 @@ var _NodeHttpHandler = class _NodeHttpHandler {
         const socketsInUse = ((_a = sockets[origin]) == null ? void 0 : _a.length) ?? 0;
         const requestsEnqueued = ((_b = requests[origin]) == null ? void 0 : _b.length) ?? 0;
         if (socketsInUse >= maxSockets && requestsEnqueued >= 2 * maxSockets) {
-          console.warn(
-            "@smithy/node-http-handler:WARN",
-            `socket usage at capacity=${socketsInUse} and ${requestsEnqueued} additional requests are enqueued.`,
-            "See https://docs.aws.amazon.com/sdk-for-javascript/v3/developer-guide/node-configuring-maxsockets.html",
-            "or increase socketAcquisitionWarningTimeout=(millis) in the NodeHttpHandler config."
+          (_c = logger == null ? void 0 : logger.warn) == null ? void 0 : _c.call(
+            logger,
+            `@smithy/node-http-handler:WARN - socket usage at capacity=${socketsInUse} and ${requestsEnqueued} additional requests are enqueued.
+See https://docs.aws.amazon.com/sdk-for-javascript/v3/developer-guide/node-configuring-maxsockets.html
+or increase socketAcquisitionWarningTimeout=(millis) in the NodeHttpHandler config.`
           );
           return Date.now();
         }
@@ -25709,7 +25721,8 @@ var _NodeHttpHandler = class _NodeHttpHandler {
           return httpsAgent;
         }
         return new import_https.Agent({ keepAlive, maxSockets, ...httpsAgent });
-      })()
+      })(),
+      logger: console
     };
   }
   destroy() {
@@ -25731,6 +25744,7 @@ var _NodeHttpHandler = class _NodeHttpHandler {
       }, "resolve");
       const reject = /* @__PURE__ */ __name(async (arg) => {
         await writeRequestBodyPromise;
+        clearTimeout(socketCheckTimeoutId);
         _reject(arg);
       }, "reject");
       if (!this.config) {
@@ -25746,7 +25760,11 @@ var _NodeHttpHandler = class _NodeHttpHandler {
       const agent = isSSL ? this.config.httpsAgent : this.config.httpAgent;
       socketCheckTimeoutId = setTimeout(
         () => {
-          this.socketWarningTimestamp = _NodeHttpHandler.checkSocketUsage(agent, this.socketWarningTimestamp);
+          this.socketWarningTimestamp = _NodeHttpHandler.checkSocketUsage(
+            agent,
+            this.socketWarningTimestamp,
+            this.config.logger
+          );
         },
         this.config.socketAcquisitionWarningTimeout ?? (this.config.requestTimeout ?? 2e3) + (this.config.connectionTimeout ?? 1e3)
       );
@@ -25793,12 +25811,17 @@ var _NodeHttpHandler = class _NodeHttpHandler {
       setConnectionTimeout(req, reject, this.config.connectionTimeout);
       setSocketTimeout(req, reject, this.config.requestTimeout);
       if (abortSignal) {
-        abortSignal.onabort = () => {
-          req.abort();
+        const onAbort = /* @__PURE__ */ __name(() => {
+          req.destroy();
           const abortError = new Error("Request aborted");
           abortError.name = "AbortError";
           reject(abortError);
-        };
+        }, "onAbort");
+        if (typeof abortSignal.addEventListener === "function") {
+          abortSignal.addEventListener("abort", onAbort);
+        } else {
+          abortSignal.onabort = onAbort;
+        }
       }
       const httpAgent = nodeHttpsOptions.agent;
       if (typeof httpAgent === "object" && "keepAlive" in httpAgent) {
@@ -25809,7 +25832,10 @@ var _NodeHttpHandler = class _NodeHttpHandler {
           keepAliveMsecs: httpAgent.keepAliveMsecs
         });
       }
-      writeRequestBodyPromise = writeRequestBody(req, request, this.config.requestTimeout).catch(_reject);
+      writeRequestBodyPromise = writeRequestBody(req, request, this.config.requestTimeout).catch((e) => {
+        clearTimeout(socketCheckTimeoutId);
+        return _reject(e);
+      });
     });
   }
   updateHttpClientConfig(key, value) {
@@ -26077,12 +26103,17 @@ var _NodeHttp2Handler = class _NodeHttp2Handler {
         });
       }
       if (abortSignal) {
-        abortSignal.onabort = () => {
+        const onAbort = /* @__PURE__ */ __name(() => {
           req.close();
           const abortError = new Error("Request aborted");
           abortError.name = "AbortError";
           rejectWithDestroy(abortError);
-        };
+        }, "onAbort");
+        if (typeof abortSignal.addEventListener === "function") {
+          abortSignal.addEventListener("abort", onAbort);
+        } else {
+          abortSignal.onabort = onAbort;
+        }
       }
       req.on("frameError", (type, code, id) => {
         rejectWithDestroy(new Error(`Frame type id ${type} in stream id ${id} has failed with code ${code}.`));
@@ -92349,7 +92380,7 @@ function isUnextendable(val) {
 /***/ ((module) => {
 
 "use strict";
-module.exports = JSON.parse('{"name":"@aws-sdk/client-secrets-manager","description":"AWS SDK for JavaScript Secrets Manager Client for Node.js, Browser and React Native","version":"3.598.0","scripts":{"build":"concurrently \'yarn:build:cjs\' \'yarn:build:es\' \'yarn:build:types\'","build:cjs":"node ../../scripts/compilation/inline client-secrets-manager","build:es":"tsc -p tsconfig.es.json","build:include:deps":"lerna run --scope $npm_package_name --include-dependencies build","build:types":"tsc -p tsconfig.types.json","build:types:downlevel":"downlevel-dts dist-types dist-types/ts3.4","clean":"rimraf ./dist-* && rimraf *.tsbuildinfo","extract:docs":"api-extractor run --local","generate:client":"node ../../scripts/generate-clients/single-service --solo secrets-manager"},"main":"./dist-cjs/index.js","types":"./dist-types/index.d.ts","module":"./dist-es/index.js","sideEffects":false,"dependencies":{"@aws-crypto/sha256-browser":"5.2.0","@aws-crypto/sha256-js":"5.2.0","@aws-sdk/client-sso-oidc":"3.598.0","@aws-sdk/client-sts":"3.598.0","@aws-sdk/core":"3.598.0","@aws-sdk/credential-provider-node":"3.598.0","@aws-sdk/middleware-host-header":"3.598.0","@aws-sdk/middleware-logger":"3.598.0","@aws-sdk/middleware-recursion-detection":"3.598.0","@aws-sdk/middleware-user-agent":"3.598.0","@aws-sdk/region-config-resolver":"3.598.0","@aws-sdk/types":"3.598.0","@aws-sdk/util-endpoints":"3.598.0","@aws-sdk/util-user-agent-browser":"3.598.0","@aws-sdk/util-user-agent-node":"3.598.0","@smithy/config-resolver":"^3.0.2","@smithy/core":"^2.2.1","@smithy/fetch-http-handler":"^3.0.2","@smithy/hash-node":"^3.0.1","@smithy/invalid-dependency":"^3.0.1","@smithy/middleware-content-length":"^3.0.1","@smithy/middleware-endpoint":"^3.0.2","@smithy/middleware-retry":"^3.0.4","@smithy/middleware-serde":"^3.0.1","@smithy/middleware-stack":"^3.0.1","@smithy/node-config-provider":"^3.1.1","@smithy/node-http-handler":"^3.0.1","@smithy/protocol-http":"^4.0.1","@smithy/smithy-client":"^3.1.2","@smithy/types":"^3.1.0","@smithy/url-parser":"^3.0.1","@smithy/util-base64":"^3.0.0","@smithy/util-body-length-browser":"^3.0.0","@smithy/util-body-length-node":"^3.0.0","@smithy/util-defaults-mode-browser":"^3.0.4","@smithy/util-defaults-mode-node":"^3.0.4","@smithy/util-endpoints":"^2.0.2","@smithy/util-middleware":"^3.0.1","@smithy/util-retry":"^3.0.1","@smithy/util-utf8":"^3.0.0","tslib":"^2.6.2","uuid":"^9.0.1"},"devDependencies":{"@tsconfig/node16":"16.1.3","@types/node":"^16.18.96","@types/uuid":"^9.0.4","concurrently":"7.0.0","downlevel-dts":"0.10.1","rimraf":"3.0.2","typescript":"~4.9.5"},"engines":{"node":">=16.0.0"},"typesVersions":{"<4.0":{"dist-types/*":["dist-types/ts3.4/*"]}},"files":["dist-*/**"],"author":{"name":"AWS SDK for JavaScript Team","url":"https://aws.amazon.com/javascript/"},"license":"Apache-2.0","browser":{"./dist-es/runtimeConfig":"./dist-es/runtimeConfig.browser"},"react-native":{"./dist-es/runtimeConfig":"./dist-es/runtimeConfig.native"},"homepage":"https://github.com/aws/aws-sdk-js-v3/tree/main/clients/client-secrets-manager","repository":{"type":"git","url":"https://github.com/aws/aws-sdk-js-v3.git","directory":"clients/client-secrets-manager"}}');
+module.exports = JSON.parse('{"name":"@aws-sdk/client-secrets-manager","description":"AWS SDK for JavaScript Secrets Manager Client for Node.js, Browser and React Native","version":"3.600.0","scripts":{"build":"concurrently \'yarn:build:cjs\' \'yarn:build:es\' \'yarn:build:types\'","build:cjs":"node ../../scripts/compilation/inline client-secrets-manager","build:es":"tsc -p tsconfig.es.json","build:include:deps":"lerna run --scope $npm_package_name --include-dependencies build","build:types":"tsc -p tsconfig.types.json","build:types:downlevel":"downlevel-dts dist-types dist-types/ts3.4","clean":"rimraf ./dist-* && rimraf *.tsbuildinfo","extract:docs":"api-extractor run --local","generate:client":"node ../../scripts/generate-clients/single-service --solo secrets-manager"},"main":"./dist-cjs/index.js","types":"./dist-types/index.d.ts","module":"./dist-es/index.js","sideEffects":false,"dependencies":{"@aws-crypto/sha256-browser":"5.2.0","@aws-crypto/sha256-js":"5.2.0","@aws-sdk/client-sso-oidc":"3.600.0","@aws-sdk/client-sts":"3.600.0","@aws-sdk/core":"3.598.0","@aws-sdk/credential-provider-node":"3.600.0","@aws-sdk/middleware-host-header":"3.598.0","@aws-sdk/middleware-logger":"3.598.0","@aws-sdk/middleware-recursion-detection":"3.598.0","@aws-sdk/middleware-user-agent":"3.598.0","@aws-sdk/region-config-resolver":"3.598.0","@aws-sdk/types":"3.598.0","@aws-sdk/util-endpoints":"3.598.0","@aws-sdk/util-user-agent-browser":"3.598.0","@aws-sdk/util-user-agent-node":"3.598.0","@smithy/config-resolver":"^3.0.2","@smithy/core":"^2.2.1","@smithy/fetch-http-handler":"^3.0.2","@smithy/hash-node":"^3.0.1","@smithy/invalid-dependency":"^3.0.1","@smithy/middleware-content-length":"^3.0.1","@smithy/middleware-endpoint":"^3.0.2","@smithy/middleware-retry":"^3.0.4","@smithy/middleware-serde":"^3.0.1","@smithy/middleware-stack":"^3.0.1","@smithy/node-config-provider":"^3.1.1","@smithy/node-http-handler":"^3.0.1","@smithy/protocol-http":"^4.0.1","@smithy/smithy-client":"^3.1.2","@smithy/types":"^3.1.0","@smithy/url-parser":"^3.0.1","@smithy/util-base64":"^3.0.0","@smithy/util-body-length-browser":"^3.0.0","@smithy/util-body-length-node":"^3.0.0","@smithy/util-defaults-mode-browser":"^3.0.4","@smithy/util-defaults-mode-node":"^3.0.4","@smithy/util-endpoints":"^2.0.2","@smithy/util-middleware":"^3.0.1","@smithy/util-retry":"^3.0.1","@smithy/util-utf8":"^3.0.0","tslib":"^2.6.2","uuid":"^9.0.1"},"devDependencies":{"@tsconfig/node16":"16.1.3","@types/node":"^16.18.96","@types/uuid":"^9.0.4","concurrently":"7.0.0","downlevel-dts":"0.10.1","rimraf":"3.0.2","typescript":"~4.9.5"},"engines":{"node":">=16.0.0"},"typesVersions":{"<4.0":{"dist-types/*":["dist-types/ts3.4/*"]}},"files":["dist-*/**"],"author":{"name":"AWS SDK for JavaScript Team","url":"https://aws.amazon.com/javascript/"},"license":"Apache-2.0","browser":{"./dist-es/runtimeConfig":"./dist-es/runtimeConfig.browser"},"react-native":{"./dist-es/runtimeConfig":"./dist-es/runtimeConfig.native"},"homepage":"https://github.com/aws/aws-sdk-js-v3/tree/main/clients/client-secrets-manager","repository":{"type":"git","url":"https://github.com/aws/aws-sdk-js-v3.git","directory":"clients/client-secrets-manager"}}');
 
 /***/ }),
 
@@ -92357,7 +92388,7 @@ module.exports = JSON.parse('{"name":"@aws-sdk/client-secrets-manager","descript
 /***/ ((module) => {
 
 "use strict";
-module.exports = JSON.parse('{"name":"@aws-sdk/client-sso-oidc","description":"AWS SDK for JavaScript Sso Oidc Client for Node.js, Browser and React Native","version":"3.598.0","scripts":{"build":"concurrently \'yarn:build:cjs\' \'yarn:build:es\' \'yarn:build:types\'","build:cjs":"node ../../scripts/compilation/inline client-sso-oidc","build:es":"tsc -p tsconfig.es.json","build:include:deps":"lerna run --scope $npm_package_name --include-dependencies build","build:types":"tsc -p tsconfig.types.json","build:types:downlevel":"downlevel-dts dist-types dist-types/ts3.4","clean":"rimraf ./dist-* && rimraf *.tsbuildinfo","extract:docs":"api-extractor run --local","generate:client":"node ../../scripts/generate-clients/single-service --solo sso-oidc"},"main":"./dist-cjs/index.js","types":"./dist-types/index.d.ts","module":"./dist-es/index.js","sideEffects":false,"dependencies":{"@aws-crypto/sha256-browser":"5.2.0","@aws-crypto/sha256-js":"5.2.0","@aws-sdk/client-sts":"3.598.0","@aws-sdk/core":"3.598.0","@aws-sdk/credential-provider-node":"3.598.0","@aws-sdk/middleware-host-header":"3.598.0","@aws-sdk/middleware-logger":"3.598.0","@aws-sdk/middleware-recursion-detection":"3.598.0","@aws-sdk/middleware-user-agent":"3.598.0","@aws-sdk/region-config-resolver":"3.598.0","@aws-sdk/types":"3.598.0","@aws-sdk/util-endpoints":"3.598.0","@aws-sdk/util-user-agent-browser":"3.598.0","@aws-sdk/util-user-agent-node":"3.598.0","@smithy/config-resolver":"^3.0.2","@smithy/core":"^2.2.1","@smithy/fetch-http-handler":"^3.0.2","@smithy/hash-node":"^3.0.1","@smithy/invalid-dependency":"^3.0.1","@smithy/middleware-content-length":"^3.0.1","@smithy/middleware-endpoint":"^3.0.2","@smithy/middleware-retry":"^3.0.4","@smithy/middleware-serde":"^3.0.1","@smithy/middleware-stack":"^3.0.1","@smithy/node-config-provider":"^3.1.1","@smithy/node-http-handler":"^3.0.1","@smithy/protocol-http":"^4.0.1","@smithy/smithy-client":"^3.1.2","@smithy/types":"^3.1.0","@smithy/url-parser":"^3.0.1","@smithy/util-base64":"^3.0.0","@smithy/util-body-length-browser":"^3.0.0","@smithy/util-body-length-node":"^3.0.0","@smithy/util-defaults-mode-browser":"^3.0.4","@smithy/util-defaults-mode-node":"^3.0.4","@smithy/util-endpoints":"^2.0.2","@smithy/util-middleware":"^3.0.1","@smithy/util-retry":"^3.0.1","@smithy/util-utf8":"^3.0.0","tslib":"^2.6.2"},"devDependencies":{"@tsconfig/node16":"16.1.3","@types/node":"^16.18.96","concurrently":"7.0.0","downlevel-dts":"0.10.1","rimraf":"3.0.2","typescript":"~4.9.5"},"engines":{"node":">=16.0.0"},"typesVersions":{"<4.0":{"dist-types/*":["dist-types/ts3.4/*"]}},"files":["dist-*/**"],"author":{"name":"AWS SDK for JavaScript Team","url":"https://aws.amazon.com/javascript/"},"license":"Apache-2.0","browser":{"./dist-es/runtimeConfig":"./dist-es/runtimeConfig.browser"},"react-native":{"./dist-es/runtimeConfig":"./dist-es/runtimeConfig.native"},"homepage":"https://github.com/aws/aws-sdk-js-v3/tree/main/clients/client-sso-oidc","repository":{"type":"git","url":"https://github.com/aws/aws-sdk-js-v3.git","directory":"clients/client-sso-oidc"}}');
+module.exports = JSON.parse('{"name":"@aws-sdk/client-sso-oidc","description":"AWS SDK for JavaScript Sso Oidc Client for Node.js, Browser and React Native","version":"3.600.0","scripts":{"build":"concurrently \'yarn:build:cjs\' \'yarn:build:es\' \'yarn:build:types\'","build:cjs":"node ../../scripts/compilation/inline client-sso-oidc","build:es":"tsc -p tsconfig.es.json","build:include:deps":"lerna run --scope $npm_package_name --include-dependencies build","build:types":"tsc -p tsconfig.types.json","build:types:downlevel":"downlevel-dts dist-types dist-types/ts3.4","clean":"rimraf ./dist-* && rimraf *.tsbuildinfo","extract:docs":"api-extractor run --local","generate:client":"node ../../scripts/generate-clients/single-service --solo sso-oidc"},"main":"./dist-cjs/index.js","types":"./dist-types/index.d.ts","module":"./dist-es/index.js","sideEffects":false,"dependencies":{"@aws-crypto/sha256-browser":"5.2.0","@aws-crypto/sha256-js":"5.2.0","@aws-sdk/client-sts":"3.600.0","@aws-sdk/core":"3.598.0","@aws-sdk/credential-provider-node":"3.600.0","@aws-sdk/middleware-host-header":"3.598.0","@aws-sdk/middleware-logger":"3.598.0","@aws-sdk/middleware-recursion-detection":"3.598.0","@aws-sdk/middleware-user-agent":"3.598.0","@aws-sdk/region-config-resolver":"3.598.0","@aws-sdk/types":"3.598.0","@aws-sdk/util-endpoints":"3.598.0","@aws-sdk/util-user-agent-browser":"3.598.0","@aws-sdk/util-user-agent-node":"3.598.0","@smithy/config-resolver":"^3.0.2","@smithy/core":"^2.2.1","@smithy/fetch-http-handler":"^3.0.2","@smithy/hash-node":"^3.0.1","@smithy/invalid-dependency":"^3.0.1","@smithy/middleware-content-length":"^3.0.1","@smithy/middleware-endpoint":"^3.0.2","@smithy/middleware-retry":"^3.0.4","@smithy/middleware-serde":"^3.0.1","@smithy/middleware-stack":"^3.0.1","@smithy/node-config-provider":"^3.1.1","@smithy/node-http-handler":"^3.0.1","@smithy/protocol-http":"^4.0.1","@smithy/smithy-client":"^3.1.2","@smithy/types":"^3.1.0","@smithy/url-parser":"^3.0.1","@smithy/util-base64":"^3.0.0","@smithy/util-body-length-browser":"^3.0.0","@smithy/util-body-length-node":"^3.0.0","@smithy/util-defaults-mode-browser":"^3.0.4","@smithy/util-defaults-mode-node":"^3.0.4","@smithy/util-endpoints":"^2.0.2","@smithy/util-middleware":"^3.0.1","@smithy/util-retry":"^3.0.1","@smithy/util-utf8":"^3.0.0","tslib":"^2.6.2"},"devDependencies":{"@tsconfig/node16":"16.1.3","@types/node":"^16.18.96","concurrently":"7.0.0","downlevel-dts":"0.10.1","rimraf":"3.0.2","typescript":"~4.9.5"},"engines":{"node":">=16.0.0"},"typesVersions":{"<4.0":{"dist-types/*":["dist-types/ts3.4/*"]}},"files":["dist-*/**"],"author":{"name":"AWS SDK for JavaScript Team","url":"https://aws.amazon.com/javascript/"},"license":"Apache-2.0","browser":{"./dist-es/runtimeConfig":"./dist-es/runtimeConfig.browser"},"react-native":{"./dist-es/runtimeConfig":"./dist-es/runtimeConfig.native"},"homepage":"https://github.com/aws/aws-sdk-js-v3/tree/main/clients/client-sso-oidc","repository":{"type":"git","url":"https://github.com/aws/aws-sdk-js-v3.git","directory":"clients/client-sso-oidc"}}');
 
 /***/ }),
 
@@ -92373,7 +92404,7 @@ module.exports = JSON.parse('{"name":"@aws-sdk/client-sso","description":"AWS SD
 /***/ ((module) => {
 
 "use strict";
-module.exports = JSON.parse('{"name":"@aws-sdk/client-sts","description":"AWS SDK for JavaScript Sts Client for Node.js, Browser and React Native","version":"3.598.0","scripts":{"build":"concurrently \'yarn:build:cjs\' \'yarn:build:es\' \'yarn:build:types\'","build:cjs":"node ../../scripts/compilation/inline client-sts","build:es":"tsc -p tsconfig.es.json","build:include:deps":"lerna run --scope $npm_package_name --include-dependencies build","build:types":"rimraf ./dist-types tsconfig.types.tsbuildinfo && tsc -p tsconfig.types.json","build:types:downlevel":"downlevel-dts dist-types dist-types/ts3.4","clean":"rimraf ./dist-* && rimraf *.tsbuildinfo","extract:docs":"api-extractor run --local","generate:client":"node ../../scripts/generate-clients/single-service --solo sts","test":"yarn test:unit","test:unit":"jest"},"main":"./dist-cjs/index.js","types":"./dist-types/index.d.ts","module":"./dist-es/index.js","sideEffects":false,"dependencies":{"@aws-crypto/sha256-browser":"5.2.0","@aws-crypto/sha256-js":"5.2.0","@aws-sdk/client-sso-oidc":"3.598.0","@aws-sdk/core":"3.598.0","@aws-sdk/credential-provider-node":"3.598.0","@aws-sdk/middleware-host-header":"3.598.0","@aws-sdk/middleware-logger":"3.598.0","@aws-sdk/middleware-recursion-detection":"3.598.0","@aws-sdk/middleware-user-agent":"3.598.0","@aws-sdk/region-config-resolver":"3.598.0","@aws-sdk/types":"3.598.0","@aws-sdk/util-endpoints":"3.598.0","@aws-sdk/util-user-agent-browser":"3.598.0","@aws-sdk/util-user-agent-node":"3.598.0","@smithy/config-resolver":"^3.0.2","@smithy/core":"^2.2.1","@smithy/fetch-http-handler":"^3.0.2","@smithy/hash-node":"^3.0.1","@smithy/invalid-dependency":"^3.0.1","@smithy/middleware-content-length":"^3.0.1","@smithy/middleware-endpoint":"^3.0.2","@smithy/middleware-retry":"^3.0.4","@smithy/middleware-serde":"^3.0.1","@smithy/middleware-stack":"^3.0.1","@smithy/node-config-provider":"^3.1.1","@smithy/node-http-handler":"^3.0.1","@smithy/protocol-http":"^4.0.1","@smithy/smithy-client":"^3.1.2","@smithy/types":"^3.1.0","@smithy/url-parser":"^3.0.1","@smithy/util-base64":"^3.0.0","@smithy/util-body-length-browser":"^3.0.0","@smithy/util-body-length-node":"^3.0.0","@smithy/util-defaults-mode-browser":"^3.0.4","@smithy/util-defaults-mode-node":"^3.0.4","@smithy/util-endpoints":"^2.0.2","@smithy/util-middleware":"^3.0.1","@smithy/util-retry":"^3.0.1","@smithy/util-utf8":"^3.0.0","tslib":"^2.6.2"},"devDependencies":{"@tsconfig/node16":"16.1.3","@types/node":"^16.18.96","concurrently":"7.0.0","downlevel-dts":"0.10.1","rimraf":"3.0.2","typescript":"~4.9.5"},"engines":{"node":">=16.0.0"},"typesVersions":{"<4.0":{"dist-types/*":["dist-types/ts3.4/*"]}},"files":["dist-*/**"],"author":{"name":"AWS SDK for JavaScript Team","url":"https://aws.amazon.com/javascript/"},"license":"Apache-2.0","browser":{"./dist-es/runtimeConfig":"./dist-es/runtimeConfig.browser"},"react-native":{"./dist-es/runtimeConfig":"./dist-es/runtimeConfig.native"},"homepage":"https://github.com/aws/aws-sdk-js-v3/tree/main/clients/client-sts","repository":{"type":"git","url":"https://github.com/aws/aws-sdk-js-v3.git","directory":"clients/client-sts"}}');
+module.exports = JSON.parse('{"name":"@aws-sdk/client-sts","description":"AWS SDK for JavaScript Sts Client for Node.js, Browser and React Native","version":"3.600.0","scripts":{"build":"concurrently \'yarn:build:cjs\' \'yarn:build:es\' \'yarn:build:types\'","build:cjs":"node ../../scripts/compilation/inline client-sts","build:es":"tsc -p tsconfig.es.json","build:include:deps":"lerna run --scope $npm_package_name --include-dependencies build","build:types":"rimraf ./dist-types tsconfig.types.tsbuildinfo && tsc -p tsconfig.types.json","build:types:downlevel":"downlevel-dts dist-types dist-types/ts3.4","clean":"rimraf ./dist-* && rimraf *.tsbuildinfo","extract:docs":"api-extractor run --local","generate:client":"node ../../scripts/generate-clients/single-service --solo sts","test":"yarn test:unit","test:unit":"jest"},"main":"./dist-cjs/index.js","types":"./dist-types/index.d.ts","module":"./dist-es/index.js","sideEffects":false,"dependencies":{"@aws-crypto/sha256-browser":"5.2.0","@aws-crypto/sha256-js":"5.2.0","@aws-sdk/client-sso-oidc":"3.600.0","@aws-sdk/core":"3.598.0","@aws-sdk/credential-provider-node":"3.600.0","@aws-sdk/middleware-host-header":"3.598.0","@aws-sdk/middleware-logger":"3.598.0","@aws-sdk/middleware-recursion-detection":"3.598.0","@aws-sdk/middleware-user-agent":"3.598.0","@aws-sdk/region-config-resolver":"3.598.0","@aws-sdk/types":"3.598.0","@aws-sdk/util-endpoints":"3.598.0","@aws-sdk/util-user-agent-browser":"3.598.0","@aws-sdk/util-user-agent-node":"3.598.0","@smithy/config-resolver":"^3.0.2","@smithy/core":"^2.2.1","@smithy/fetch-http-handler":"^3.0.2","@smithy/hash-node":"^3.0.1","@smithy/invalid-dependency":"^3.0.1","@smithy/middleware-content-length":"^3.0.1","@smithy/middleware-endpoint":"^3.0.2","@smithy/middleware-retry":"^3.0.4","@smithy/middleware-serde":"^3.0.1","@smithy/middleware-stack":"^3.0.1","@smithy/node-config-provider":"^3.1.1","@smithy/node-http-handler":"^3.0.1","@smithy/protocol-http":"^4.0.1","@smithy/smithy-client":"^3.1.2","@smithy/types":"^3.1.0","@smithy/url-parser":"^3.0.1","@smithy/util-base64":"^3.0.0","@smithy/util-body-length-browser":"^3.0.0","@smithy/util-body-length-node":"^3.0.0","@smithy/util-defaults-mode-browser":"^3.0.4","@smithy/util-defaults-mode-node":"^3.0.4","@smithy/util-endpoints":"^2.0.2","@smithy/util-middleware":"^3.0.1","@smithy/util-retry":"^3.0.1","@smithy/util-utf8":"^3.0.0","tslib":"^2.6.2"},"devDependencies":{"@tsconfig/node16":"16.1.3","@types/node":"^16.18.96","concurrently":"7.0.0","downlevel-dts":"0.10.1","rimraf":"3.0.2","typescript":"~4.9.5"},"engines":{"node":">=16.0.0"},"typesVersions":{"<4.0":{"dist-types/*":["dist-types/ts3.4/*"]}},"files":["dist-*/**"],"author":{"name":"AWS SDK for JavaScript Team","url":"https://aws.amazon.com/javascript/"},"license":"Apache-2.0","browser":{"./dist-es/runtimeConfig":"./dist-es/runtimeConfig.browser"},"react-native":{"./dist-es/runtimeConfig":"./dist-es/runtimeConfig.native"},"homepage":"https://github.com/aws/aws-sdk-js-v3/tree/main/clients/client-sts","repository":{"type":"git","url":"https://github.com/aws/aws-sdk-js-v3.git","directory":"clients/client-sts"}}');
 
 /***/ }),
 
