@@ -34,7 +34,7 @@
   "devDependencies": {
     "@types/jest": "^29.5.12",
     "@typescript-eslint/eslint-plugin": "^6.20.0",
-    "@typescript-eslint/parser": "^6.20.0",
+    "@typescript-eslint/parser": "^7.15.0",
     "@vercel/ncc": "^0.38.1",
     "aws-sdk-client-mock": "^4.0.1",
     "aws-sdk-client-mock-jest": "^4.0.1",
