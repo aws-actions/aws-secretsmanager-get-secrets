@@ -1,4 +1,5 @@
-import * as core from '@actions/core'
+import * as core from '@actions/core';
+import { setDefaultAutoSelectFamilyAttemptTimeout } from 'net';
 import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
 import {
     buildSecretsList,
@@ -13,6 +14,13 @@ import { CLEANUP_NAME } from "./constants";
 
 export async function run(): Promise<void> {
     try {
+        // Node 20 introduced automatic family selection for dual-stack endpoints. When the runner 
+        // sits far away from the secrets manager endpoint it sometimes timeouts on negotiation between
+        // A and AAAA records. This behaviour was described in the https://github.com/nodejs/node/issues/54359
+        // The default value is 250ms, increasing to 1s. The integration tests stops beeing flaky with this
+        // value.
+        setDefaultAutoSelectFamilyAttemptTimeout(1000);
+
         // Default client region is set by configure-aws-credentials
         const client : SecretsManagerClient = new SecretsManagerClient({region: process.env.AWS_DEFAULT_REGION, customUserAgent: "github-action"});
         const secretConfigInputs: string[] = [...new Set(core.getMultilineInput('secret-ids'))];

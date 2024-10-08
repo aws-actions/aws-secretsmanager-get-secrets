@@ -1,5 +1,10 @@
 name: Builds
 description: Builds the repository and assumes the AWS IAM role for testing
+inputs:
+  aws-region: 
+    description: Region where the credentials will be assumed
+    required: false
+    default: us-east-1
 runs:
   using: composite
   steps:
@@ -24,4 +29,4 @@ runs:
       uses: aws-actions/configure-aws-credentials@v4
       with:
         role-to-assume: ${{ steps.role-to-assume.outputs.arn }}
-        aws-region: us-east-1
+        aws-region: ${{ inputs.aws-region }}
