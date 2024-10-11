@@ -132,3 +132,20 @@ jobs:
           secret-ids: JsonSecret
       - name: Assert Default Is No Json Secrets
         run: npm run integration-test __integration_tests__/parse_json_secrets.test.ts
+
+  af-south-1-integration-test:
+    runs-on: ubuntu-latest
+    needs: unit-tests
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Build
+        uses: ./.github/actions/build
+        with:
+          aws-region: af-south-1
+      - name: Act
+        uses: ./
+        with:
+          secret-ids: JsonSecret
+      - name: Assert
+        run: npm run integration-test __integration_tests__/parse_json_secrets.test.ts
