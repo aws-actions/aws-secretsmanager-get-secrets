@@ -84436,12 +84436,19 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.run = void 0;
 const core = __importStar(__nccwpck_require__(42186));
+const net_1 = __nccwpck_require__(41808);
 const client_secrets_manager_1 = __nccwpck_require__(39600);
 const utils_1 = __nccwpck_require__(71314);
 const constants_1 = __nccwpck_require__(69042);
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
+            // Node 20 introduced automatic family selection for dual-stack endpoints. When the runner 
+            // sits far away from the secrets manager endpoint it sometimes timeouts on negotiation between
+            // A and AAAA records. This behaviour was described in the https://github.com/nodejs/node/issues/54359
+            // The default value is 250ms, increasing to 1s. The integration tests stops beeing flaky with this
+            // value.
+            (0, net_1.setDefaultAutoSelectFamilyAttemptTimeout)(1000);
             // Default client region is set by configure-aws-credentials
             const client = new client_secrets_manager_1.SecretsManagerClient({ region: process.env.AWS_DEFAULT_REGION, customUserAgent: "github-action" });
             const secretConfigInputs = [...new Set(core.getMultilineInput('secret-ids'))];
