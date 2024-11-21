@@ -16,7 +16,7 @@ updates:
         update-types:
           - minor
           - patch
-      dev-dependencies;
+      dev-dependencies:
         applies-to: version-updates
         dependency-type: development
         update-types:
