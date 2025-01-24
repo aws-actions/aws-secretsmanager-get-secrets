@@ -23,8 +23,10 @@ export async function run(): Promise<void> {
         const timeoutInput = core.getInput('auto-select-family-attempt-timeout');
         const timeout = timeoutInput ? Number(timeoutInput) : 1000;
         
-        if (isNaN(timeout)) {
+        if (isNaN(timeout) || (timeout < 0)) {
             throw new Error('auto-select-family-attempt-timeout must be a valid number');
+        } else {
+            setDefaultAutoSelectFamilyAttemptTimeout(timeout);
         }
         
 
