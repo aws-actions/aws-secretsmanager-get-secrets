@@ -19,7 +19,18 @@ export async function run(): Promise<void> {
         // A and AAAA records. This behaviour was described in the https://github.com/nodejs/node/issues/54359
         // The default value is 250ms, increasing to 1s. The integration tests stops beeing flaky with this
         // value.
-        setDefaultAutoSelectFamilyAttemptTimeout(1000);
+
+        const timeoutInput = core.getInput('auto-select-family-attempt-timeout');
+        let timeout = timeoutInput ? Number(timeoutInput) : 1000;
+        
+        if (isNaN(timeout) || (timeout < 0)) {
+            timeout = 1000;
+            setDefaultAutoSelectFamilyAttemptTimeout(timeout);
+        } else {
+            setDefaultAutoSelectFamilyAttemptTimeout(timeout);
+        }
+        
+
 
         // Default client region is set by configure-aws-credentials
         const client : SecretsManagerClient = new SecretsManagerClient({region: process.env.AWS_DEFAULT_REGION, customUserAgent: "github-action"});
