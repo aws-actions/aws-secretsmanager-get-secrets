@@ -23,7 +23,7 @@ export async function run(): Promise<void> {
         const timeoutInput = core.getInput('auto-select-family-attempt-timeout');
         let timeout = timeoutInput ? Number(timeoutInput) : 1000;
         
-        if (timeout < 0) {
+        if (isNaN(timeout) || (timeout < 0)) {
             timeout = 1000;
             setDefaultAutoSelectFamilyAttemptTimeout(timeout);
         } else {
