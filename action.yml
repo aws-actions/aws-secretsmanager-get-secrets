@@ -16,6 +16,12 @@ inputs:
     description: '(Optional) Transforms environment variable name. Options: uppercase, lowercase, none. Default value: uppercase.'
     required: false
     default: 'uppercase'
+  auto-select-family-attempt-timeout:
+    description: '(Optional) Timeout in milliseconds for each attempt to retrieve a secret from a secret family. Default value: 1000'
+    required: false
+    type: number
+    default: 1000
+    minimum: 0
 runs:
   using: 'node20'
   main: 'dist/index.js'
