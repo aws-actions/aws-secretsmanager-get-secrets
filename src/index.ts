@@ -21,10 +21,11 @@ export async function run(): Promise<void> {
         // value.
 
         const timeoutInput = core.getInput('auto-select-family-attempt-timeout');
-        const timeout = timeoutInput ? Number(timeoutInput) : 1000;
+        let timeout = timeoutInput ? Number(timeoutInput) : 1000;
         
-        if (isNaN(timeout) || (timeout < 0)) {
-            throw new Error('auto-select-family-attempt-timeout must be a valid number');
+        if (timeout < 0) {
+            timeout = 1000;
+            setDefaultAutoSelectFamilyAttemptTimeout(timeout);
         } else {
             setDefaultAutoSelectFamilyAttemptTimeout(timeout);
         }
