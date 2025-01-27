@@ -17,7 +17,7 @@ inputs:
     required: false
     default: 'uppercase'
   auto-select-family-attempt-timeout:
-    description: '(Optional) Timeout in milliseconds for each attempt to retrieve a secret from a secret family. Default value: 1000'
+    description: '(Optional) Sets the default value of the autoSelectFamilyAttemptTimeout option. Changing this value would change the length of timeout between each call to get a secret from  a select family. Use this option when some calls are taking longer than the default timeout'
     required: false
     type: number
     default: 1000
