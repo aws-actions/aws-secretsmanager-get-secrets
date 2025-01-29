@@ -49,7 +49,7 @@ const BLANK_ALIAS_INPUT_3 = "," + BLANK_NAME_3;
 
 const DEFAULT_TIMEOUT = '1000';
 const VALID_TIMEOUT = '3000';
-const INVALID_TIMEOUT_STRING = 'timeout';
+const INVALID_TIMEOUT_STRING = 'abc';
 const INVALID_TIMEOUT_NUMBER = '-1';
 
 // Mock the inputs for Github action
