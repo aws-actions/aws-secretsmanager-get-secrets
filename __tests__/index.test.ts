@@ -11,6 +11,8 @@ const DEFAULT_TEST_ENV = {
     AWS_DEFAULT_REGION: 'us-east-1'
 };
 
+import * as net from 'net';
+
 const smMockClient = mockClient(SecretsManagerClient);
 
 const TEST_NAME = "test/*";
@@ -63,6 +65,12 @@ jest.mock('@actions/core', () => {
         setSecret:  jest.fn(),
     };
 });
+
+jest.mock('net', () => {
+        return {
+            setDefaultAutoSelectFamilyAttemptTimeout: jest.fn()
+        }
+    });
 
 describe('Test main action', () => {
     const OLD_ENV = process.env;
@@ -249,10 +257,11 @@ describe('Test main action', () => {
         
         await run();
         
-        expect(core.getInput).toHaveBeenCalledWith('auto-select-family-attempt-timeout');
+        expect(net.setDefaultAutoSelectFamilyAttemptTimeout).toHaveBeenCalledWith(1000);
 
         
         timeoutSpy.mockClear();
+
     });
 
     test('handles valid timeout value', async () => {
@@ -264,14 +273,14 @@ describe('Test main action', () => {
 
         await run();
         
-        expect(core.getInput).toHaveBeenCalledWith('auto-select-family-attempt-timeout');
+        expect(net.setDefaultAutoSelectFamilyAttemptTimeout).toHaveBeenCalledWith(3000);
 
         
         timeoutSpy.mockClear();
     });
 
     test('handles invalid negative timeout value and falls back to default', async () => {
-        const timeoutSpy = jest.spyOn(core, 'getInput').mockReturnValue(INVALID_TIMEOUT_NUMBER);
+        const timeoutSpy = jest.spyOn(core, 'getInput').mockReturnValue(INVALID_TIMEOUT_STRING);
         
         // Set up a simple mock response
         smMockClient
@@ -281,7 +290,7 @@ describe('Test main action', () => {
         // If the request goes through, it means the timeout was successfully set to default
         await run();
     
-        expect(core.getInput).toHaveBeenCalledWith('auto-select-family-attempt-timeout');
+        expect(net.setDefaultAutoSelectFamilyAttemptTimeout).toHaveBeenCalledWith(1000);
         
         timeoutSpy.mockClear();
     });
