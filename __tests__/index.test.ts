@@ -49,7 +49,7 @@ const BLANK_ALIAS_INPUT_3 = "," + BLANK_NAME_3;
 
 const DEFAULT_TIMEOUT = '1000';
 const VALID_TIMEOUT = '3000';
-const INVALID_TIMEOUT_STRING = 'abc';
+const INVALID_TIMEOUT_STRING = 'abcd';
 const INVALID_TIMEOUT_NUMBER = '-1';
 
 // Mock the inputs for Github action
@@ -249,7 +249,7 @@ describe('Test main action', () => {
 
     
     test('handles invalid timeout string and falls back to default', async () => {
-        const timeoutSpy = jest.spyOn(core, 'getInput').mockReturnValue(INVALID_TIMEOUT_STRING);
+        const timeoutSpy = jest.spyOn(core, 'getInput').mockReturnValue(INVALID_TIMEOUT_NUMBER);
 
         smMockClient
         .on(GetSecretValueCommand)
