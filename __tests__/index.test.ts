@@ -290,7 +290,7 @@ describe('Test main action', () => {
         
         await run();
     
-        expect(net.setDefaultAutoSelectFamilyAttemptTimeout).toHaveBeenCalledWith(10);
+        expect(net.setDefaultAutoSelectFamilyAttemptTimeout).toHaveBeenCalledWith(-1);
         
         timeoutSpy.mockClear();
     });

@@ -17,7 +17,7 @@ inputs:
     required: false
     default: 'uppercase'
   auto-select-family-attempt-timeout:
-    description: '(Optional) Timeout (ms) for dual-stack DNS first IP connection attempt, needed for geographically distant GitHub action workers'
+    description: '(Optional) Timeout (ms) for dual-stack DNS first IP connection attempt. Needed for geographically distant GitHub action workers'
     required: false
     type: number
     default: 1000
