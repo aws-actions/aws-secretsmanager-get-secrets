@@ -62,7 +62,7 @@ Note that if the JSON uses case-sensitive keys such as "name" and "Name", the ac
 
 - `auto-select-family-attempt-timeout`
 
-(Optional - default 1000) By default, this will set the timeout between each call to be 1 second.
+(Optional - default 1000) Specifies the timeout (in milliseconds) for attempting to connect to the first IP address in a dual-stack DNS lookup. This setting is crucial especially when GitHub Action workers are geographically distant from the target region where the secrets are stored.
 
 Set `auto-select-family-attempt-timeout` to any positive integer to set the timeout between each call to that value in milliseconds. 
 ### Environment variable naming
