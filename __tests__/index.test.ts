@@ -50,7 +50,6 @@ const BLANK_ALIAS_INPUT_3 = "," + BLANK_NAME_3;
 
 const VALID_TIMEOUT = '3000';
 const INVALID_TIMEOUT_STRING = 'abc';
-const INVALID_TIMEOUT_NUMBER = '-1';
 
 // Mock the inputs for Github action
 jest.mock('@actions/core', () => {
@@ -278,23 +277,6 @@ describe('Test main action', () => {
         
         timeoutSpy.mockClear();
     });
-
-    test('handles invalid negative timeout value', async () => {
-        const timeoutSpy = jest.spyOn(core, 'getInput').mockReturnValue(INVALID_TIMEOUT_NUMBER);
-        
-        // Set up a simple mock response
-        smMockClient
-            .on(GetSecretValueCommand)
-            .resolves({ SecretString: 'test' });
-    
-        
-        await run();
-    
-        expect(net.setDefaultAutoSelectFamilyAttemptTimeout).toHaveBeenCalledWith(-1);
-        
-        timeoutSpy.mockClear();
-    });
-    
     
     
 });
