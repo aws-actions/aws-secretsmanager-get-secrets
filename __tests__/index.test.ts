@@ -247,13 +247,8 @@ describe('Test main action', () => {
     });
 
     
-<<<<<<< HEAD
-    test('handles invalid timeout string and falls back to default', async () => {
-        const timeoutSpy = jest.spyOn(core, 'getInput').mockReturnValue(INVALID_TIMEOUT_NUMBER);
-=======
     test('handles invalid timeout string', async () => {
         const timeoutSpy = jest.spyOn(core, 'getInput').mockReturnValue(INVALID_TIMEOUT_STRING);
->>>>>>> d25799c8cff56ae8a8d8b8957c912be5f82abe6a
 
         smMockClient
         .on(GetSecretValueCommand)
