@@ -17,18 +17,11 @@ export async function run(): Promise<void> {
         // Node 20 introduced automatic family selection for dual-stack endpoints. When the runner 
         // sits far away from the secrets manager endpoint it sometimes timeouts on negotiation between
         // A and AAAA records. This behaviour was described in the https://github.com/nodejs/node/issues/54359
-        // The default value is 250ms, increasing to 1s. The integration tests stops beeing flaky with this
-        // value.
-
-        const timeoutInput = core.getInput('auto-select-family-attempt-timeout');
-        let timeout = timeoutInput ? Number(timeoutInput) : 1000;
+        // The default value is 1s. We allow configuring this timeout through the
+        // 'auto-select-family-attempt-timeout' parameter to help prevent flaky integration tests
         
-        if (isNaN(timeout) || (timeout < 0)) {
-            timeout = 1000;
-            setDefaultAutoSelectFamilyAttemptTimeout(timeout);
-        } else {
-            setDefaultAutoSelectFamilyAttemptTimeout(timeout);
-        }
+        const timeout = Number(core.getInput('auto-select-family-attempt-timeout'));
+        setDefaultAutoSelectFamilyAttemptTimeout(timeout);
         
 
 
