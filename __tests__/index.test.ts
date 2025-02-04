@@ -85,6 +85,7 @@ describe('Test main action', () => {
     });
 
     test('Retrieves and sets the requested secrets as environment variables, parsing JSON', async () => {
+        const timeoutSpy = jest.spyOn(core, 'getInput').mockReturnValue('1000');
         const booleanSpy = jest.spyOn(core, "getBooleanInput").mockReturnValue(true);
         const multilineInputSpy = jest.spyOn(core, "getMultilineInput").mockReturnValue(
             [TEST_NAME, TEST_INPUT_3, TEST_ARN_INPUT, BLANK_ALIAS_INPUT]
@@ -153,6 +154,7 @@ describe('Test main action', () => {
         booleanSpy.mockClear();
         multilineInputSpy.mockClear();
         nameTransformationSpy.mockClear();
+        timeoutSpy.mockClear();
     });
 
     test('Defaults to correct behavior with empty string alias', async () => {
@@ -256,7 +258,7 @@ describe('Test main action', () => {
         
         await run();
         
-        expect(net.setDefaultAutoSelectFamilyAttemptTimeout).toHaveBeenCalledWith(NaN);
+        expect(core.setFailed).toHaveBeenCalledTimes(1);
 
         
         timeoutSpy.mockClear();
