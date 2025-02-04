@@ -27,7 +27,7 @@ export async function run(): Promise<void> {
             return;
         } 
 
-        setDefaultAutoSelectFamilyAttemptTimeout(timeout)
+        setDefaultAutoSelectFamilyAttemptTimeout(timeout);
         
 
 
