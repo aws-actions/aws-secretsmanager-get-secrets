@@ -87,11 +87,6 @@ describe('Test main action', () => {
     });
 
     test('Retrieves and sets the requested secrets as environment variables, parsing JSON', async () => {
-        // This is a weird scenario here. When adding a set fail for an invalid timeout value in index.ts,
-        // this test fails because the jest.spyOn(core, 'getInput') will overwrite the return value for either
-        // name-transformation or auto-select-family-attempt-timeout. It depends on what spy is getting called first.
-        // If auto-select-family-attempt-timeout was called and then name-tranformation, then it would overwrite the value of '1000' with 'uppercase'
-        // which would fail the test. However, using a switch statement fixes the issue. If anyone can explain why there is an overwrite, please let me know
         const getInputSpy = jest.spyOn(core, 'getInput');
         getInputSpy.mockImplementation((name) => {
             switch(name) {
