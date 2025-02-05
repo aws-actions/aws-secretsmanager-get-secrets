@@ -19,9 +19,7 @@ inputs:
   auto-select-family-attempt-timeout:
     description: '(Optional) Timeout (ms) for dual-stack DNS first IP connection attempt. Needed for geographically distant GitHub action workers'
     required: false
-    type: number
-    default: 1000
-    minimum: 10
+    default: '1000'
 runs:
   using: 'node20'
   main: 'dist/index.js'

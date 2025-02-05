@@ -147,6 +147,6 @@ jobs:
         uses: ./
         with:
           secret-ids: JsonSecret
-          auto-select-family-attempt-timeout: 2000
+          auto-select-family-attempt-timeout: '2000'
       - name: Assert
         run: npm run integration-test __integration_tests__/parse_json_secrets.test.ts

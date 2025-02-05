@@ -21,6 +21,12 @@ export async function run(): Promise<void> {
         // 'auto-select-family-attempt-timeout' parameter to help prevent flaky integration tests
         
         const timeout = Number(core.getInput('auto-select-family-attempt-timeout'));
+        
+        if (timeout < 10 || Number.isNaN(timeout)) {
+            core.setFailed(`Invalid value for 'auto-select-family-attempt-timeout': ${timeout}. Must be a number greater than 10.`);
+            return;
+        } 
+
         setDefaultAutoSelectFamilyAttemptTimeout(timeout);
         
 

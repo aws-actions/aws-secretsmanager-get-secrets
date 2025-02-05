@@ -50,6 +50,8 @@ const BLANK_ALIAS_INPUT_3 = "," + BLANK_NAME_3;
 
 const VALID_TIMEOUT = '3000';
 const INVALID_TIMEOUT_STRING = 'abc';
+const DEFAULT_TIMEOUT = '1000';
+const INVALID_TIMEOUT = '9';
 
 // Mock the inputs for Github action
 jest.mock('@actions/core', () => {
@@ -85,11 +87,27 @@ describe('Test main action', () => {
     });
 
     test('Retrieves and sets the requested secrets as environment variables, parsing JSON', async () => {
+        // This is a weird scenario here. When adding a set fail for an invalid timeout value in index.ts,
+        // this test fails because the jest.spyOn(core, 'getInput') will overwrite the return value for either
+        // name-transformation or auto-select-family-attempt-timeout. It depends on what spy is getting called first.
+        // If auto-select-family-attempt-timeout was called and then name-tranformation, then it would overwrite the value of '1000' with 'uppercase'
+        // which would fail the test. However, using a switch statement fixes the issue. If anyone can explain why there is an overwrite, please let me know
+        const getInputSpy = jest.spyOn(core, 'getInput');
+        getInputSpy.mockImplementation((name) => {
+            switch(name) {
+                case 'auto-select-family-attempt-timeout':
+                    return DEFAULT_TIMEOUT;
+                case 'name-transformation':
+                    return 'uppercase';
+                default:
+                    return '';
+            }
+        });
         const booleanSpy = jest.spyOn(core, "getBooleanInput").mockReturnValue(true);
         const multilineInputSpy = jest.spyOn(core, "getMultilineInput").mockReturnValue(
             [TEST_NAME, TEST_INPUT_3, TEST_ARN_INPUT, BLANK_ALIAS_INPUT]
         );
-        const nameTransformationSpy = jest.spyOn(core, 'getInput').mockReturnValue('uppercase');
+        
 
         // Mock all Secrets Manager calls
         smMockClient
@@ -152,7 +170,6 @@ describe('Test main action', () => {
 
         booleanSpy.mockClear();
         multilineInputSpy.mockClear();
-        nameTransformationSpy.mockClear();
     });
 
     test('Defaults to correct behavior with empty string alias', async () => {
@@ -256,7 +273,7 @@ describe('Test main action', () => {
         
         await run();
         
-        expect(net.setDefaultAutoSelectFamilyAttemptTimeout).toHaveBeenCalledWith(NaN);
+        expect(core.setFailed).toHaveBeenCalled();
 
         
         timeoutSpy.mockClear();
@@ -278,5 +295,20 @@ describe('Test main action', () => {
         timeoutSpy.mockClear();
     });
     
+
+    test('handles invalid timeout value', async () => {
+        const timeoutSpy = jest.spyOn(core, 'getInput').mockReturnValue(INVALID_TIMEOUT);
+
+        smMockClient
+        .on(GetSecretValueCommand)
+        .resolves({ SecretString: 'test' });
+
+        await run();
+
+        expect(core.setFailed).toHaveBeenCalled();
+
+
+        timeoutSpy.mockClear();
+    })
     
 });
