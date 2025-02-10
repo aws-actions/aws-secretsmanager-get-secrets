@@ -232,4 +232,81 @@ describe('Test main action', () => {
         multilineInputSpy.mockClear();
         nameTransformationSpy.mockClear();
     });
+
+    test('Keep existing cleanup list', async() => {
+        // Set existing cleanup list
+        process.env = {...process.env, SECRETS_LIST_CLEAN_UP: JSON.stringify(["EXISTING_TEST_SECRET", "EXISTING_TEST_SECRET_DB_HOST"])};
+
+        const booleanSpy = jest.spyOn(core, "getBooleanInput").mockReturnValue(true);
+        const multilineInputSpy = jest.spyOn(core, "getMultilineInput").mockReturnValue(
+            [TEST_NAME, TEST_INPUT_3, TEST_ARN_INPUT, BLANK_ALIAS_INPUT]
+        );
+        const nameTransformationSpy = jest.spyOn(core, 'getInput').mockReturnValue('uppercase');
+
+
+
+        // Mock all Secrets Manager calls
+        smMockClient
+            .on(GetSecretValueCommand, { SecretId: TEST_NAME_1})
+            .resolves({ Name: TEST_NAME_1, SecretString: SECRET_1 })
+            .on(GetSecretValueCommand, {SecretId: TEST_NAME_2 })
+            .resolves({  Name: TEST_NAME_2, SecretString: SECRET_2 })
+            .on(GetSecretValueCommand, { SecretId: TEST_NAME_3 })
+            .resolves({ Name: TEST_NAME_3, SecretString: SECRET_3 })
+            .on(GetSecretValueCommand, { // Retrieve arn secret
+                SecretId: TEST_ARN_1,
+            })
+            .resolves({
+                Name: TEST_NAME_4,
+                SecretString: SECRET_4
+            })
+            .on(ListSecretsCommand)
+            .resolves({
+                SecretList: [
+                    {
+                        Name: TEST_NAME_1
+                    },
+                    {
+                        Name: TEST_NAME_2
+                    }
+                ]
+            })
+            .on(GetSecretValueCommand, { SecretId: BLANK_NAME })
+            .resolves({ Name: BLANK_NAME, SecretString: SECRET_FOR_BLANK });
+
+        await run();
+        expect(core.setFailed).not.toHaveBeenCalled();
+        expect(core.exportVariable).toHaveBeenCalledTimes(10);
+
+        // JSON secrets should be parsed
+        expect(core.exportVariable).toHaveBeenCalledWith('TEST_ONE_USER', 'admin');
+        expect(core.exportVariable).toHaveBeenCalledWith('TEST_ONE_PASSWORD', 'adminpw');
+        expect(core.exportVariable).toHaveBeenCalledWith('TEST_TWO_USER', 'integ');
+        expect(core.exportVariable).toHaveBeenCalledWith('TEST_TWO_PASSWORD', 'integpw');
+
+        expect(core.exportVariable).toHaveBeenCalledWith(ENV_NAME_3, SECRET_3);
+        expect(core.exportVariable).toHaveBeenCalledWith(ENV_NAME_4, SECRET_4);
+
+        // Case when alias is blank, but still comma delimited in workflow and json is parsed
+        // ex: ,test5/secret
+        expect(core.exportVariable).toHaveBeenCalledWith("USERNAME", "integ");
+        expect(core.exportVariable).toHaveBeenCalledWith("PASSWORD", "integpw");
+        expect(core.exportVariable).toHaveBeenCalledWith("CONFIG_ID1", "example1");
+
+        expect(core.exportVariable).toHaveBeenCalledWith(
+            CLEANUP_NAME,
+            JSON.stringify([
+                'EXISTING_TEST_SECRET', 'EXISTING_TEST_SECRET_DB_HOST',
+                'TEST_ONE_USER', 'TEST_ONE_PASSWORD',
+                'TEST_TWO_USER', 'TEST_TWO_PASSWORD',
+                ENV_NAME_3,
+                ENV_NAME_4,
+                "USERNAME", "PASSWORD", "CONFIG_ID1"
+            ])
+        );
+
+        booleanSpy.mockClear();
+        multilineInputSpy.mockClear();
+        nameTransformationSpy.mockClear();
+    })
 });
