@@ -62,9 +62,9 @@ Note that if the JSON uses case-sensitive keys such as "name" and "Name", the ac
 
 - `auto-select-family-attempt-timeout`
 
-(Optional - default 1000) Specifies the timeout (in milliseconds) for attempting to connect to the first IP address in a dual-stack DNS lookup. This setting is crucial especially when GitHub Action workers are geographically distant from the target region where the secrets are stored.
+(Optional - default 1000) Specifies the timeout (in milliseconds) for attempting to connect to the first IP address in a dual-stack DNS lookup. This setting is crucial especially when GitHub Action workers are geographically distant from the target region where the secrets are stored. The timeout must be greater than ot equal to 10 ms
 
-Set `auto-select-family-attempt-timeout` to any positive integer to set the timeout between each call to that value in milliseconds. 
+Set `auto-select-family-attempt-timeout` to any positive integer that is greater than or equal to 10 ms to set the timeout between each call to that value in milliseconds. 
 ### Environment variable naming
 
 The environment variables created by the action are named the same as the secrets they come from. Environment variables have stricter naming requirements than secrets, so the action transforms secret names to meet those requirements. For example, the action transforms lowercase letters to uppercase letters. If you parse the JSON of the secret, then the environment variable name includes both the secret name and the JSON key name, for example `MYSECRET_KEYNAME`.
