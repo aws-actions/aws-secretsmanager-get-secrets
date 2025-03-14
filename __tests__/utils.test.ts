@@ -375,8 +375,6 @@ describe('Test secret parsing and handling', () => {
         const result = `${transformedPrefix}_${transformedProperty}`;
 
         expect(result).toBe('DB_1PASSWORD');
-        expect(result).not.toBe('DB__1PASSWORD');
-        expect(result.includes('__')).toBeFalsy();
     });
 
     test('Transformation function is applied', () => {
