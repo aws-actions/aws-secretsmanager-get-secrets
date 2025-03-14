@@ -21,6 +21,7 @@ The IAM role the action assumes must have the following permissions:
 
 For more information, see [Authentication and access control for AWS Secrets Manager](auth-and-access.md).
 
+This is a test diff
 ### Usage
 
 To use the action, add a step to your workflow that uses the following syntax.
