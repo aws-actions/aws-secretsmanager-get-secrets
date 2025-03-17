@@ -369,6 +369,14 @@ describe('Test secret parsing and handling', () => {
         expect(transformToValidEnvName('0Admin')).toBe('_0ADMIN')
     });
 
+    test('Maintains single underscore between prefix and numeric properties', () => {
+        const transformedPrefix = transformToValidEnvName('DB', undefined, false);
+        const transformedProperty = transformToValidEnvName('7Value', undefined, true);
+        const result = `${transformedPrefix}_${transformedProperty}`;
+
+        expect(result).toBe('DB_7VALUE');
+    });
+
     test('Transformation function is applied', () => {
         expect(transformToValidEnvName('secret3', (x) => x.toUpperCase())).toBe('SECRET3')
     });
