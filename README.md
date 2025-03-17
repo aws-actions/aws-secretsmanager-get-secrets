@@ -34,6 +34,7 @@ To use the action, add a step to your workflow that uses the following syntax.
       ENV_VAR_NAME, secretId2
     name-transformation: (Optional) uppercase|lowercase|none
     parse-json-secrets: (Optional) true|false
+    auto-select-family-attempt-timeout: (Optional) positive integer
 ```
 Parameters
 
@@ -59,6 +60,11 @@ Set `parse-json-secrets` to `true` to create environment variables for each key/
 
 Note that if the JSON uses case-sensitive keys such as "name" and "Name", the action will have duplicate name conflicts. In this case, set `parse-json-secrets` to `false` and parse the JSON secret value separately. 
 
+- `auto-select-family-attempt-timeout`
+
+(Optional - default 1000) Specifies the timeout (in milliseconds) for attempting to connect to the first IP address in a dual-stack DNS lookup. This setting is crucial especially when GitHub Action workers are geographically distant from the target region where the secrets are stored. The timeout must be greater than ot equal to 10 ms
+
+Set `auto-select-family-attempt-timeout` to any positive integer that is greater than or equal to 10 ms to set the timeout between each call to that value in milliseconds. 
 ### Environment variable naming
 
 The environment variables created by the action are named the same as the secrets they come from. Environment variables have stricter naming requirements than secrets, so the action transforms secret names to meet those requirements. For example, the action transforms lowercase letters to uppercase letters. If you parse the JSON of the secret, then the environment variable name includes both the secret name and the JSON key name, for example `MYSECRET_KEYNAME`.
@@ -192,6 +198,26 @@ Environment variable created:
 
 ```
 examplesecretname: secretValue
+```
+
+**Example 5 Setting the timeout to 2 seconds**
+The following example sets the timeout between each call to be 2 seconds
+
+```
+- name: Get secrets with custom timeout
+  uses: aws-actions/aws-secretsmanager-get-secrets@v2
+  with:
+    secret-ids: |
+      test/secret
+      prod/secret
+    auto-select-family-attempt-timeout: 2000  # Sets timeout to 2 seconds between calls
+```
+
+Environment variables created:
+
+```
+TEST_SECRET: secretValue1
+PROD_SECRET: secretValue2
 ```
 
 ## Security

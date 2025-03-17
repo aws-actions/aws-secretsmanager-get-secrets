@@ -11,6 +11,8 @@ const DEFAULT_TEST_ENV = {
     AWS_DEFAULT_REGION: 'us-east-1'
 };
 
+import * as net from 'net';
+
 const smMockClient = mockClient(SecretsManagerClient);
 
 const TEST_NAME = "test/*";
@@ -44,6 +46,13 @@ const BLANK_NAME_3 = "test/blank3";
 const SECRET_FOR_BLANK_3 = '{"username": "integ", "password": "integpw", "config": {"id2": "example2"}}';
 const BLANK_ALIAS_INPUT_3 = "," + BLANK_NAME_3;
 
+
+
+const VALID_TIMEOUT = '3000';
+const INVALID_TIMEOUT_STRING = 'abc';
+const DEFAULT_TIMEOUT = '1000';
+const INVALID_TIMEOUT = '9';
+
 // Mock the inputs for Github action
 jest.mock('@actions/core', () => {
     return {
@@ -57,6 +66,12 @@ jest.mock('@actions/core', () => {
         setSecret:  jest.fn(),
     };
 });
+
+jest.mock('net', () => {
+        return {
+            setDefaultAutoSelectFamilyAttemptTimeout: jest.fn()
+        }
+    });
 
 describe('Test main action', () => {
     const OLD_ENV = process.env;
@@ -72,11 +87,22 @@ describe('Test main action', () => {
     });
 
     test('Retrieves and sets the requested secrets as environment variables, parsing JSON', async () => {
+        const getInputSpy = jest.spyOn(core, 'getInput');
+        getInputSpy.mockImplementation((name) => {
+            switch(name) {
+                case 'auto-select-family-attempt-timeout':
+                    return DEFAULT_TIMEOUT;
+                case 'name-transformation':
+                    return 'uppercase';
+                default:
+                    return '';
+            }
+        });
         const booleanSpy = jest.spyOn(core, "getBooleanInput").mockReturnValue(true);
         const multilineInputSpy = jest.spyOn(core, "getMultilineInput").mockReturnValue(
             [TEST_NAME, TEST_INPUT_3, TEST_ARN_INPUT, BLANK_ALIAS_INPUT]
         );
-        const nameTransformationSpy = jest.spyOn(core, 'getInput').mockReturnValue('uppercase');
+        
 
         // Mock all Secrets Manager calls
         smMockClient
@@ -139,7 +165,6 @@ describe('Test main action', () => {
 
         booleanSpy.mockClear();
         multilineInputSpy.mockClear();
-        nameTransformationSpy.mockClear();
     });
 
     test('Defaults to correct behavior with empty string alias', async () => {
@@ -233,6 +258,7 @@ describe('Test main action', () => {
         nameTransformationSpy.mockClear();
     });
 
+
     test('Keep existing cleanup list', async() => {
         // Set existing cleanup list
         process.env = {...process.env, SECRETS_LIST_CLEAN_UP: JSON.stringify(["EXISTING_TEST_SECRET", "EXISTING_TEST_SECRET_DB_HOST"])};
@@ -309,4 +335,52 @@ describe('Test main action', () => {
         multilineInputSpy.mockClear();
         nameTransformationSpy.mockClear();
     })
+    
+    test('handles invalid timeout string', async () => {
+        const timeoutSpy = jest.spyOn(core, 'getInput').mockReturnValue(INVALID_TIMEOUT_STRING);
+
+        smMockClient
+        .on(GetSecretValueCommand)
+        .resolves({ SecretString: 'test' });
+        
+        await run();
+        
+        expect(core.setFailed).toHaveBeenCalled();
+
+        
+        timeoutSpy.mockClear();
+
+    });
+
+    test('handles valid timeout value', async () => {
+        const timeoutSpy = jest.spyOn(core, 'getInput').mockReturnValue(VALID_TIMEOUT);
+
+        smMockClient
+        .on(GetSecretValueCommand)
+        .resolves({ SecretString: 'test' });
+
+        await run();
+        
+        expect(net.setDefaultAutoSelectFamilyAttemptTimeout).toHaveBeenCalledWith(3000);
+
+        
+        timeoutSpy.mockClear();
+    });
+    
+
+    test('handles invalid timeout value', async () => {
+        const timeoutSpy = jest.spyOn(core, 'getInput').mockReturnValue(INVALID_TIMEOUT);
+
+        smMockClient
+        .on(GetSecretValueCommand)
+        .resolves({ SecretString: 'test' });
+
+        await run();
+
+        expect(core.setFailed).toHaveBeenCalled();
+
+
+        timeoutSpy.mockClear();
+    })
+    
 });
