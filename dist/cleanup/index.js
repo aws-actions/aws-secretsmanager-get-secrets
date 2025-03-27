@@ -84649,8 +84649,8 @@ function injectSecret(secretName, secretValue, parseJsonSecrets, nameTransformat
             const keyValue = typeof secretMap[k] === 'string' ? secretMap[k] : JSON.stringify(secretMap[k]);
             // Append the current key to the name of the env variable and check to avoid prepending an underscore
             const newEnvName = [
-                tempEnvName || transformToValidEnvName(secretName, nameTransformation),
-                transformToValidEnvName(k, nameTransformation)
+                tempEnvName || transformToValidEnvName(secretName, nameTransformation, false),
+                transformToValidEnvName(k, nameTransformation, true)
             ]
                 .filter(elem => elem) // Uses truthy-ness of elem to determine if it remains
                 .join("_"); // Join the remaining elements with an underscore
@@ -84692,9 +84692,9 @@ exports.isJSONString = isJSONString;
  * Transforms the secret name into a valid environmental variable name
  * It should consist of only upper case letters, digits, and underscores and cannot begin with a number
  */
-function transformToValidEnvName(secretName, nameTransformation) {
+function transformToValidEnvName(secretName, nameTransformation, hasPrefix = false) {
     // Leading digits are invalid
-    if (secretName.match(/^[0-9]/)) {
+    if (!hasPrefix && secretName.match(/^[0-9]/)) {
         secretName = '_'.concat(secretName);
     }
     // Remove invalid characters
