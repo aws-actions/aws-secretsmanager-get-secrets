@@ -325,6 +325,41 @@ describe('Test secret parsing and handling', () => {
         expect(core.exportVariable).toHaveBeenCalledWith('TEST_SECRET_CONFIG_OPTIONS_C', '100');
     });
 
+    test('Maintains single underscore between prefix and numeric properties', () => {
+        const secretName = 'DB';
+        const secretValue = JSON.stringify({
+            "7Value": "test-value"
+        });
+        
+        const secretsToCleanup = injectSecret(
+            secretName,
+            secretValue,
+            true,  
+            undefined
+        );
+    
+        expect(secretsToCleanup).toHaveLength(1);
+        expect(secretsToCleanup[0]).toBe('DB_7VALUE');
+    });
+
+    test('Maintains single underscore between prefix and numeric properties with a EnvName', () => {
+        const secretName = 'DB';
+        const secretValue = JSON.stringify({
+            "7Value": "test-value"
+        });
+
+        const secretsToCleanup = injectSecret(
+            secretName,
+            secretValue,
+            true,  
+            undefined,
+            TEST_ENV_NAME  
+        );
+    
+        expect(secretsToCleanup).toHaveLength(1);
+        expect(secretsToCleanup[0]).toBe('TEST_SECRET_7VALUE');
+    });
+
     /* 
     * Test: parseAliasFromId()
     */
@@ -368,6 +403,7 @@ describe('Test secret parsing and handling', () => {
     test('Prevents leading digits in environment name', () => {
         expect(transformToValidEnvName('0Admin')).toBe('_0ADMIN')
     });
+
 
     test('Transformation function is applied', () => {
         expect(transformToValidEnvName('secret3', (x) => x.toUpperCase())).toBe('SECRET3')
