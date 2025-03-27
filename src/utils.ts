@@ -150,7 +150,7 @@ export function injectSecret(
             // Append the current key to the name of the env variable and check to avoid prepending an underscore
             const newEnvName = [
                 tempEnvName || transformToValidEnvName(secretName, nameTransformation, false),
-                transformToValidEnvName(k, nameTransformation, !tempEnvName)
+                transformToValidEnvName(k, nameTransformation, true)
             ]
             .filter(elem => elem) // Uses truthy-ness of elem to determine if it remains
             .join("_"); // Join the remaining elements with an underscore

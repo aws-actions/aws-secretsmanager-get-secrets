@@ -335,11 +335,29 @@ describe('Test secret parsing and handling', () => {
             secretName,
             secretValue,
             true,  
-            undefined  
+            undefined
         );
     
         expect(secretsToCleanup).toHaveLength(1);
         expect(secretsToCleanup[0]).toBe('DB_7VALUE');
+    });
+
+    test('Maintains single underscore between prefix and numeric properties with a EnvName', () => {
+        const secretName = 'DB';
+        const secretValue = JSON.stringify({
+            "7Value": "test-value"
+        });
+
+        const secretsToCleanup = injectSecret(
+            secretName,
+            secretValue,
+            true,  
+            undefined,
+            TEST_ENV_NAME  
+        );
+    
+        expect(secretsToCleanup).toHaveLength(1);
+        expect(secretsToCleanup[0]).toBe('TEST_SECRET_7VALUE');
     });
 
     /* 
