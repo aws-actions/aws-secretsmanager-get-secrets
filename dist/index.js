@@ -83271,6 +83271,11 @@ function run() {
                     core.setFailed(`Failed to fetch secret: '${secretId}'. Error: ${err}.`);
                 }
             }
+            // Get existing clean up list
+            const existingCleanupSecrets = process.env[constants_1.CLEANUP_NAME];
+            if (existingCleanupSecrets) {
+                secretsToCleanup = [...JSON.parse(existingCleanupSecrets), ...secretsToCleanup];
+            }
             // Export the names of variables to clean up after completion
             core.exportVariable(constants_1.CLEANUP_NAME, JSON.stringify(secretsToCleanup));
             core.info("Completed adding secrets.");
