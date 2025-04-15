@@ -76,6 +76,12 @@ export async function run(): Promise<void> {
             } 
         }
 
+        // Get existing clean up list
+        const existingCleanupSecrets = process.env[CLEANUP_NAME];
+        if (existingCleanupSecrets) {
+            secretsToCleanup = [...JSON.parse(existingCleanupSecrets), ...secretsToCleanup];
+        }
+
         // Export the names of variables to clean up after completion
         core.exportVariable(CLEANUP_NAME, JSON.stringify(secretsToCleanup));
 
