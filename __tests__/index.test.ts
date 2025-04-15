@@ -263,12 +263,22 @@ describe('Test main action', () => {
         // Set existing cleanup list
         process.env = {...process.env, SECRETS_LIST_CLEAN_UP: JSON.stringify(["EXISTING_TEST_SECRET", "EXISTING_TEST_SECRET_DB_HOST"])};
 
+        const getInputSpy = jest.spyOn(core, 'getInput');
+        getInputSpy.mockImplementation((name) => {
+            switch(name) {
+                case 'auto-select-family-attempt-timeout':
+                    return DEFAULT_TIMEOUT;
+                case 'name-transformation':
+                    return 'uppercase';
+                default:
+                    return '';
+            }
+        });
+
         const booleanSpy = jest.spyOn(core, "getBooleanInput").mockReturnValue(true);
         const multilineInputSpy = jest.spyOn(core, "getMultilineInput").mockReturnValue(
             [TEST_NAME, TEST_INPUT_3, TEST_ARN_INPUT, BLANK_ALIAS_INPUT]
         );
-        const nameTransformationSpy = jest.spyOn(core, 'getInput').mockReturnValue('uppercase');
-
 
 
         // Mock all Secrets Manager calls
@@ -333,7 +343,7 @@ describe('Test main action', () => {
 
         booleanSpy.mockClear();
         multilineInputSpy.mockClear();
-        nameTransformationSpy.mockClear();
+        getInputSpy.mockClear();
     })
     
     test('handles invalid timeout string', async () => {
