@@ -1,26 +1,26 @@
-name: 'AWS Secrets Manager GitHub Action'
-author: 'AWS Secrets Manager'
-description: 'GitHub action for retrieving secrets from AWS Secrets Manager'
+name: "AWS Secrets Manager GitHub Action"
+author: "AWS Secrets Manager"
+description: "GitHub action for retrieving secrets from AWS Secrets Manager"
 branding:
-  icon: 'cloud'
-  color: 'orange'
+  icon: "cloud"
+  color: "orange"
 inputs:
   secret-ids:
-    description: 'One or more secret names, secret ARNs, or secret prefixes to retrieve'
+    description: "One or more secret names, secret ARNs, or secret prefixes to retrieve"
     required: true
   parse-json-secrets:
-    description: '(Optional) If true, JSON secrets will be deserialized, creating a secret environment variable for each key-value pair.'
+    description: "(Optional) If true, JSON secrets will be deserialized, creating a secret environment variable for each key-value pair."
     required: false
-    default: 'false'
+    default: "false"
   name-transformation:
-    description: '(Optional) Transforms environment variable name. Options: uppercase, lowercase, none. Default value: uppercase.'
+    description: "(Optional) Transforms environment variable name. Options: uppercase, lowercase, none. Default value: uppercase."
     required: false
-    default: 'uppercase'
+    default: "uppercase"
   auto-select-family-attempt-timeout:
-    description: '(Optional) Timeout (ms) for dual-stack DNS first IP connection attempt. Needed for geographically distant GitHub action workers'
+    description: "(Optional) Timeout (ms) for dual-stack DNS first IP connection attempt. Needed for geographically distant GitHub action workers"
     required: false
-    default: '1000'
+    default: "1000"
 runs:
-  using: 'node20'
-  main: 'dist/index.js'
-  post: 'dist/cleanup/index.js'
+  using: "node20"
+  main: "dist/index.js"
+  post: "dist/cleanup/index.js"

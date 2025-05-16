@@ -1,7 +1,7 @@
 name: Builds
 description: Builds the repository and assumes the AWS IAM role for testing
 inputs:
-  aws-region: 
+  aws-region:
     description: Region where the credentials will be assumed
     required: false
     default: us-east-1
@@ -11,9 +11,11 @@ runs:
     - name: Install dependencies
       run: npm ci
       shell: bash
+
     - name: Build the dist folder
       run: npm run build
       shell: bash
+
     - name: Determine role to assume
       id: role-to-assume
       run: |
@@ -25,6 +27,7 @@ runs:
           echo "arn=arn:aws:iam::654654453185:role/GithubActionsRole" >> "$GITHUB_OUTPUT"
         fi
       shell: bash
+
     - name: Configure AWS Credentials
       uses: aws-actions/configure-aws-credentials@v4
       with:

@@ -272,7 +272,7 @@ describe('Test secret parsing and handling', () => {
         jest.clearAllMocks();
     });
 
-    /* 
+    /*
     * Test: isSecretArn()
     */
     test('Returns true for valid arn', () => {
@@ -285,7 +285,7 @@ describe('Test secret parsing and handling', () => {
         expect(isSecretArn(TEST_NAME)).toEqual(false);
     });
 
-    /* 
+    /*
     * Test: injectSecret()
     */
     test('Stores a simple secret', () => {
@@ -330,14 +330,14 @@ describe('Test secret parsing and handling', () => {
         const secretValue = JSON.stringify({
             "7Value": "test-value"
         });
-        
+
         const secretsToCleanup = injectSecret(
             secretName,
             secretValue,
-            true,  
+            true,
             undefined
         );
-    
+
         expect(secretsToCleanup).toHaveLength(1);
         expect(secretsToCleanup[0]).toBe('DB_7VALUE');
     });
@@ -351,16 +351,16 @@ describe('Test secret parsing and handling', () => {
         const secretsToCleanup = injectSecret(
             secretName,
             secretValue,
-            true,  
+            true,
             undefined,
-            TEST_ENV_NAME  
+            TEST_ENV_NAME
         );
-    
+
         expect(secretsToCleanup).toHaveLength(1);
         expect(secretsToCleanup[0]).toBe('TEST_SECRET_7VALUE');
     });
 
-    /* 
+    /*
     * Test: parseAliasFromId()
     */
     test('Separates an alias from an id if provided', () => {
@@ -393,7 +393,7 @@ describe('Test secret parsing and handling', () => {
         }).toThrow();
     });
 
-    /* 
+    /*
     * Test: transformToValidEnvName()
     */
     test('Prevents illegal special characters in environment name', () => {
@@ -409,7 +409,7 @@ describe('Test secret parsing and handling', () => {
         expect(transformToValidEnvName('secret3', (x) => x.toUpperCase())).toBe('SECRET3')
     });
 
-    /* 
+    /*
     * Test: isJSONString()
     */
     test('Test invalid JSON "100" ', () => {

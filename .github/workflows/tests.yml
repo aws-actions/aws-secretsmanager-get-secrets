@@ -2,11 +2,7 @@ name: Tests
 
 on:
   pull_request:
-    branches:
-      - main
-  push:
-    branches:
-      - main
+    types: [opened, synchronize, ready_for_review]
 
 permissions:
   id-token: write
@@ -18,12 +14,18 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Prettier
+        uses: rutajdash/prettier-cli-action@v1.0.2
+        with:
+          file_pattern: "**/*.{ts,json,md,yml}"
+
       - name: Run Unit Tests
         run: |
           npm ci
           npm run test
       - name: Codecov
-        uses: codecov/codecov-action@v5.4.2
+        uses: codecov/codecov-action@v5
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
@@ -33,20 +35,23 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
       - name: Build
         uses: ./.github/actions/build
+
       - name: Act
         uses: ./
         with:
           name-transformation: uppercase
           parse-json-secrets: true
           secret-ids: |
-              SampleSecret1
-              /special/chars/secret
-              0/special/chars/secret
-              PrefixSecret*
-              JsonSecret
-              SAMPLESECRET1_ALIAS, SampleSecret1
+            SampleSecret1
+            /special/chars/secret
+            0/special/chars/secret
+            PrefixSecret*
+            JsonSecret
+            SAMPLESECRET1_ALIAS, SampleSecret1
+
       - name: Assert
         run: npm run integration-test __integration_tests__/name_transformation/uppercase.test.ts
 
@@ -56,20 +61,23 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
       - name: Build
         uses: ./.github/actions/build
+
       - name: Act
         uses: ./
         with:
           name-transformation: lowercase
           parse-json-secrets: true
           secret-ids: |
-              SampleSecret1
-              /special/chars/secret
-              0/special/chars/secret
-              PrefixSecret*
-              JsonSecret
-              samplesecret1_alias, SampleSecret1
+            SampleSecret1
+            /special/chars/secret
+            0/special/chars/secret
+            PrefixSecret*
+            JsonSecret
+            samplesecret1_alias, SampleSecret1
+
       - name: Assert
         run: npm run integration-test __integration_tests__/name_transformation/lowercase.test.ts
 
@@ -79,20 +87,23 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
       - name: Build
         uses: ./.github/actions/build
+
       - name: Act
         uses: ./
         with:
           name-transformation: none
           parse-json-secrets: true
           secret-ids: |
-              SampleSecret1
-              /special/chars/secret
-              0/special/chars/secret
-              PrefixSecret*
-              JsonSecret
-              SampleSecret1_Alias, SampleSecret1
+            SampleSecret1
+            /special/chars/secret
+            0/special/chars/secret
+            PrefixSecret*
+            JsonSecret
+            SampleSecret1_Alias, SampleSecret1
+
       - name: Assert
         run: npm run integration-test __integration_tests__/name_transformation/none.test.ts
 
@@ -102,19 +113,22 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
       - name: Build
         uses: ./.github/actions/build
+
       - name: Act
         uses: ./
         with:
           parse-json-secrets: true
           secret-ids: |
-              SampleSecret1
-              /special/chars/secret
-              0/special/chars/secret
-              PrefixSecret*
-              JsonSecret
-              SAMPLESECRET1_ALIAS, SampleSecret1
+            SampleSecret1
+            /special/chars/secret
+            0/special/chars/secret
+            PrefixSecret*
+            JsonSecret
+            SAMPLESECRET1_ALIAS, SampleSecret1
+
       - name: Assert
         run: npm run integration-test __integration_tests__/name_transformation/uppercase.test.ts
 
@@ -124,12 +138,15 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
       - name: Build
         uses: ./.github/actions/build
+
       - name: Act
         uses: ./
         with:
           secret-ids: JsonSecret
+
       - name: Assert Default Is No Json Secrets
         run: npm run integration-test __integration_tests__/parse_json_secrets.test.ts
 
@@ -139,14 +156,17 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
       - name: Build
         uses: ./.github/actions/build
         with:
           aws-region: af-south-1
+
       - name: Act
         uses: ./
         with:
           secret-ids: JsonSecret
-          auto-select-family-attempt-timeout: '2000'
+          auto-select-family-attempt-timeout: "2000"
+
       - name: Assert
         run: npm run integration-test __integration_tests__/parse_json_secrets.test.ts
