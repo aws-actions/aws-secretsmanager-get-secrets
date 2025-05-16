@@ -102,7 +102,7 @@ describe('Test main action', () => {
         const multilineInputSpy = jest.spyOn(core, "getMultilineInput").mockReturnValue(
             [TEST_NAME, TEST_INPUT_3, TEST_ARN_INPUT, BLANK_ALIAS_INPUT]
         );
-        
+
 
         // Mock all Secrets Manager calls
         smMockClient
@@ -345,19 +345,19 @@ describe('Test main action', () => {
         multilineInputSpy.mockClear();
         getInputSpy.mockClear();
     })
-    
+
     test('handles invalid timeout string', async () => {
         const timeoutSpy = jest.spyOn(core, 'getInput').mockReturnValue(INVALID_TIMEOUT_STRING);
 
         smMockClient
         .on(GetSecretValueCommand)
         .resolves({ SecretString: 'test' });
-        
+
         await run();
-        
+
         expect(core.setFailed).toHaveBeenCalled();
 
-        
+
         timeoutSpy.mockClear();
 
     });
@@ -370,13 +370,13 @@ describe('Test main action', () => {
         .resolves({ SecretString: 'test' });
 
         await run();
-        
+
         expect(net.setDefaultAutoSelectFamilyAttemptTimeout).toHaveBeenCalledWith(3000);
 
-        
+
         timeoutSpy.mockClear();
     });
-    
+
 
     test('handles invalid timeout value', async () => {
         const timeoutSpy = jest.spyOn(core, 'getInput').mockReturnValue(INVALID_TIMEOUT);
@@ -392,5 +392,5 @@ describe('Test main action', () => {
 
         timeoutSpy.mockClear();
     })
-    
+
 });
