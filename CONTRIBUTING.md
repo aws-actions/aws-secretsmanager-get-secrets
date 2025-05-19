@@ -43,7 +43,7 @@ GitHub provides additional document on [forking a repository](https://help.githu
 
 - Install [Prettier](https://prettier.io/docs/install).
   - If using VS Code, install the VS Code extension for the above.
-- Run `prettier --write **/*.{ts,jsonmd,yml}`.
+- Run `prettier --write **/*.{ts,json,md,yml}`.
 
 ## Finding contributions to work on
 
