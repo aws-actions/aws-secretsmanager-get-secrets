@@ -19,7 +19,7 @@ The IAM role the action assumes must have the following permissions:
 + `ListSecrets` on all secrets.
 + \(Optional\) `Decrypt` on the KMS key if the secrets are encrypted with a customer managed key.
 
-For more information, see [Authentication and access control for AWS Secrets Manager](auth-and-access.md).
+For more information, see [Authentication and access control for AWS Secrets Manager](https://docs.aws.amazon.com/secretsmanager/latest/userguide/auth-and-access.html).
 
 ### Usage
 
