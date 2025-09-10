@@ -36,6 +36,7 @@ export async function run(): Promise<void> {
         const secretConfigInputs: string[] = [...new Set(core.getMultilineInput('secret-ids'))];
         const parseJsonSecrets = core.getBooleanInput('parse-json-secrets');
         const nameTransformation = parseTransformationFunction(core.getInput('name-transformation'));
+        const jsonSecretKeys: string[] = [...new Set(core.getMultilineInput('json-secret-keys'))].filter(key => key.trim() !== '');
 
         // Get final list of secrets to request
         core.info('Building secrets list...');
@@ -68,7 +69,7 @@ export async function run(): Promise<void> {
                     secretAlias = isArn ? secretValueResponse.name : secretId;
                 }
 
-                const injectedSecrets = injectSecret(secretAlias, secretValue, parseJsonSecrets, nameTransformation);
+                const injectedSecrets = injectSecret(secretAlias, secretValue, parseJsonSecrets, nameTransformation, undefined, jsonSecretKeys);
                 secretsToCleanup = [...secretsToCleanup, ...injectedSecrets];
             } catch (err) {
                 // Fail action for any error

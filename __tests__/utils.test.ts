@@ -324,6 +324,47 @@ describe('Test secret parsing and handling', () => {
         expect(core.exportVariable).toHaveBeenCalledWith('TEST_SECRET_CONFIG_OPTIONS_B', 'NO');
         expect(core.exportVariable).toHaveBeenCalledWith('TEST_SECRET_CONFIG_OPTIONS_C', '100');
     });
+    test('Stores only specified keys when allowedKeys is provided', () => {
+        const allowedKeys = ['api_key'];
+        injectSecret(TEST_NAME, SIMPLE_JSON_SECRET, true, undefined, undefined, allowedKeys);
+        expect(core.exportVariable).toHaveBeenCalledTimes(1);
+        expect(core.exportVariable).toHaveBeenCalledWith('TEST_SECRET_API_KEY', 'testkey');
+        expect(core.setSecret).toHaveBeenCalledTimes(1);
+        expect(core.setSecret).toHaveBeenCalledWith('testkey');
+    });
+    test('Stores multiple specified keys when allowedKeys contains multiple keys', () => {
+        const allowedKeys = ['api_key', 'user'];
+        injectSecret(TEST_NAME, SIMPLE_JSON_SECRET, true, undefined, undefined, allowedKeys);
+        expect(core.exportVariable).toHaveBeenCalledTimes(2);
+        expect(core.exportVariable).toHaveBeenCalledWith('TEST_SECRET_API_KEY', 'testkey');
+        expect(core.exportVariable).toHaveBeenCalledWith('TEST_SECRET_USER', 'testuser');
+        expect(core.setSecret).toHaveBeenCalledTimes(2);
+    });
+    test('Skips non-allowed keys when allowedKeys is provided', () => {
+        const allowedKeys = ['nonexistent'];
+        injectSecret(TEST_NAME, SIMPLE_JSON_SECRET, true, undefined, undefined, allowedKeys);
+        expect(core.exportVariable).not.toHaveBeenCalled();
+        expect(core.setSecret).not.toHaveBeenCalled();
+    });
+    test('Falls back to all keys when allowedKeys is empty array', () => {
+        const allowedKeys: string[] = [];
+        injectSecret(TEST_NAME, SIMPLE_JSON_SECRET, true, undefined, undefined, allowedKeys);
+        expect(core.exportVariable).toHaveBeenCalledTimes(2);
+        expect(core.exportVariable).toHaveBeenCalledWith('TEST_SECRET_API_KEY', 'testkey');
+        expect(core.exportVariable).toHaveBeenCalledWith('TEST_SECRET_USER', 'testuser');
+    });
+    test('Selective key extraction works with nested JSON', () => {
+        const allowedKeys = ['host', 'config'];
+        injectSecret(TEST_NAME, NESTED_JSON_SECRET, true, undefined, undefined, allowedKeys);
+        expect(core.exportVariable).toHaveBeenCalledWith('TEST_SECRET_HOST', '127.0.0.1');
+        expect(core.exportVariable).toHaveBeenCalledWith('TEST_SECRET_CONFIG_DB_USER', 'testuser');
+        expect(core.exportVariable).toHaveBeenCalledWith('TEST_SECRET_CONFIG_DB_PASSWORD', 'testpw');
+        expect(core.exportVariable).toHaveBeenCalledWith('TEST_SECRET_CONFIG_OPTIONS_A', 'YES');
+        expect(core.exportVariable).toHaveBeenCalledWith('TEST_SECRET_CONFIG_OPTIONS_B', 'NO');
+        expect(core.exportVariable).toHaveBeenCalledWith('TEST_SECRET_CONFIG_OPTIONS_C', '100');
+        // Should not have called for 'port' since it's not in allowedKeys
+        expect(core.exportVariable).not.toHaveBeenCalledWith('TEST_SECRET_PORT', '3600');
+    });
 
     test('Maintains single underscore between prefix and numeric properties', () => {
         const secretName = 'DB';

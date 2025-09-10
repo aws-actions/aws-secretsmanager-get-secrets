@@ -167,13 +167,18 @@ function getSecretValue(client, secretId) {
  * @param parseJsonSecrets: Indicates whether to deserialize JSON secrets
  * @param nameTransformation: Transforms the secret name
  * @param tempEnvName: If parsing JSON secrets, contains the current name for the env variable
+ * @param allowedKeys: If provided, only these keys will be extracted from JSON secrets
  */
-function injectSecret(secretName, secretValue, parseJsonSecrets, nameTransformation, tempEnvName) {
+function injectSecret(secretName, secretValue, parseJsonSecrets, nameTransformation, tempEnvName, allowedKeys) {
     let secretsToCleanup = [];
     if (parseJsonSecrets && isJSONString(secretValue)) {
         // Recursively parses json secrets
         const secretMap = JSON.parse(secretValue);
         for (const k in secretMap) {
+            // If allowedKeys is provided and we're at the top level (no tempEnvName), check if this key is allowed
+            if (allowedKeys && allowedKeys.length > 0 && !tempEnvName && !allowedKeys.includes(k)) {
+                continue; // Skip this key if it's not in the allowed list
+            }
             const keyValue = typeof secretMap[k] === 'string' ? secretMap[k] : JSON.stringify(secretMap[k]);
             // Append the current key to the name of the env variable and check to avoid prepending an underscore
             const newEnvName = [
@@ -182,7 +187,7 @@ function injectSecret(secretName, secretValue, parseJsonSecrets, nameTransformat
             ]
                 .filter(elem => elem) // Uses truthy-ness of elem to determine if it remains
                 .join("_"); // Join the remaining elements with an underscore
-            secretsToCleanup = [...secretsToCleanup, ...injectSecret(secretName, keyValue, parseJsonSecrets, nameTransformation, newEnvName)];
+            secretsToCleanup = [...secretsToCleanup, ...injectSecret(secretName, keyValue, parseJsonSecrets, nameTransformation, newEnvName, allowedKeys)];
         }
     }
     else {

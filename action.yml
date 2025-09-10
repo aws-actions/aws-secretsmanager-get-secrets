@@ -20,6 +20,9 @@ inputs:
     description: '(Optional) Timeout (ms) for dual-stack DNS first IP connection attempt. Needed for geographically distant GitHub action workers'
     required: false
     default: '1000'
+  json-secret-keys:
+    description: '(Optional) When parse-json-secrets is true, specify which keys from the JSON should be extracted as environment variables. If not provided, all keys are extracted (default behavior).'
+    required: false
 runs:
   using: 'node20'
   main: 'dist/index.js'
