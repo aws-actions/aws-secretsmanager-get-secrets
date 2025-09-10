@@ -99,9 +99,16 @@ describe('Test main action', () => {
             }
         });
         const booleanSpy = jest.spyOn(core, "getBooleanInput").mockReturnValue(true);
-        const multilineInputSpy = jest.spyOn(core, "getMultilineInput").mockReturnValue(
-            [TEST_NAME, TEST_INPUT_3, TEST_ARN_INPUT, BLANK_ALIAS_INPUT]
-        );
+        const multilineInputSpy = jest.spyOn(core, "getMultilineInput").mockImplementation((name) => {
+            switch(name) {
+                case 'secret-ids':
+                    return [TEST_NAME, TEST_INPUT_3, TEST_ARN_INPUT, BLANK_ALIAS_INPUT];
+                case 'json-secret-keys':
+                    return []; // Empty array means extract all keys (default behavior)
+                default:
+                    return [];
+            }
+        });
         
 
         // Mock all Secrets Manager calls
@@ -169,9 +176,16 @@ describe('Test main action', () => {
 
     test('Defaults to correct behavior with empty string alias', async () => {
         const booleanSpy = jest.spyOn(core, "getBooleanInput").mockReturnValue(false);
-        const multilineInputSpy = jest.spyOn(core, "getMultilineInput").mockReturnValue(
-            [BLANK_ALIAS_INPUT_2, BLANK_ALIAS_INPUT_3]
-        );
+        const multilineInputSpy = jest.spyOn(core, "getMultilineInput").mockImplementation((name) => {
+            switch(name) {
+                case 'secret-ids':
+                    return [BLANK_ALIAS_INPUT_2, BLANK_ALIAS_INPUT_3];
+                case 'json-secret-keys':
+                    return []; // Empty array means extract all keys (default behavior)
+                default:
+                    return [];
+            }
+        });
 
         smMockClient
             .on(GetSecretValueCommand, { SecretId: BLANK_NAME_2 })
@@ -202,9 +216,16 @@ describe('Test main action', () => {
 
     test('Fails the action when an error occurs in Secrets Manager', async () => {
         const booleanSpy = jest.spyOn(core, "getBooleanInput").mockReturnValue(true);
-        const multilineInputSpy = jest.spyOn(core, "getMultilineInput").mockReturnValue(
-            [TEST_NAME, TEST_INPUT_3, TEST_ARN_INPUT]
-        );
+        const multilineInputSpy = jest.spyOn(core, "getMultilineInput").mockImplementation((name) => {
+            switch(name) {
+                case 'secret-ids':
+                    return [TEST_NAME, TEST_INPUT_3, TEST_ARN_INPUT];
+                case 'json-secret-keys':
+                    return []; // Empty array means extract all keys (default behavior)
+                default:
+                    return [];
+            }
+        });
 
         smMockClient.onAnyCommand().resolves({});
 
@@ -217,9 +238,16 @@ describe('Test main action', () => {
 
     test('Fails the action when multiple secrets exported the same variable name', async () => {
         const booleanSpy = jest.spyOn(core, "getBooleanInput").mockReturnValue(true);
-        const multilineInputSpy = jest.spyOn(core, "getMultilineInput").mockReturnValue(
-            [TEST_NAME, TEST_INPUT_3, TEST_ARN_INPUT]
-        );
+        const multilineInputSpy = jest.spyOn(core, "getMultilineInput").mockImplementation((name) => {
+            switch(name) {
+                case 'secret-ids':
+                    return [TEST_NAME, TEST_INPUT_3, TEST_ARN_INPUT];
+                case 'json-secret-keys':
+                    return []; // Empty array means extract all keys (default behavior)
+                default:
+                    return [];
+            }
+        });
         const nameTransformationSpy = jest.spyOn(core, 'getInput').mockReturnValue('uppercase');
 
         smMockClient
@@ -276,10 +304,16 @@ describe('Test main action', () => {
         });
 
         const booleanSpy = jest.spyOn(core, "getBooleanInput").mockReturnValue(true);
-        const multilineInputSpy = jest.spyOn(core, "getMultilineInput").mockReturnValue(
-            [TEST_NAME, TEST_INPUT_3, TEST_ARN_INPUT, BLANK_ALIAS_INPUT]
-        );
-
+        const multilineInputSpy = jest.spyOn(core, "getMultilineInput").mockImplementation((name) => {
+            switch(name) {
+                case 'secret-ids':
+                    return [TEST_NAME, TEST_INPUT_3, TEST_ARN_INPUT, BLANK_ALIAS_INPUT];
+                case 'json-secret-keys':
+                    return []; // Empty array means extract all keys (default behavior)
+                default:
+                    return [];
+            }
+        });
 
         // Mock all Secrets Manager calls
         smMockClient

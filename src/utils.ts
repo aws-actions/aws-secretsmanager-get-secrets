@@ -132,19 +132,26 @@ export async function getSecretValue(client: SecretsManagerClient, secretId: str
  * @param parseJsonSecrets: Indicates whether to deserialize JSON secrets
  * @param nameTransformation: Transforms the secret name
  * @param tempEnvName: If parsing JSON secrets, contains the current name for the env variable
+ * @param allowedKeys: If provided, only these keys will be extracted from JSON secrets
  */
 export function injectSecret(
     secretName: string,
     secretValue: string,
     parseJsonSecrets: boolean,
     nameTransformation?: TransformationFunc,
-    tempEnvName?: string): string[] {
+    tempEnvName?: string,
+    allowedKeys?: string[]): string[] {
     let secretsToCleanup = [] as string[];
     if(parseJsonSecrets && isJSONString(secretValue)){
         // Recursively parses json secrets
         const secretMap = JSON.parse(secretValue) as Record<string, string | object>;
 
         for (const k in secretMap) {
+            // If allowedKeys is provided and we're at the top level (no tempEnvName), check if this key is allowed
+            if (allowedKeys && allowedKeys.length > 0 && !tempEnvName && !allowedKeys.includes(k)) {
+                continue; // Skip this key if it's not in the allowed list
+            }
+
             const keyValue = typeof secretMap[k] === 'string' ? secretMap[k] as string : JSON.stringify(secretMap[k]);
 
             // Append the current key to the name of the env variable and check to avoid prepending an underscore
@@ -155,7 +162,7 @@ export function injectSecret(
             .filter(elem => elem) // Uses truthy-ness of elem to determine if it remains
             .join("_"); // Join the remaining elements with an underscore
 
-            secretsToCleanup = [...secretsToCleanup, ...injectSecret(secretName, keyValue, parseJsonSecrets, nameTransformation, newEnvName)];
+            secretsToCleanup = [...secretsToCleanup, ...injectSecret(secretName, keyValue, parseJsonSecrets, nameTransformation, newEnvName, allowedKeys)];
         }
     } else {
         const envName = transformToValidEnvName(tempEnvName ? tempEnvName : secretName, nameTransformation);

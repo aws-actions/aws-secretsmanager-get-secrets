@@ -34,6 +34,9 @@ To use the action, add a step to your workflow that uses the following syntax.
       ENV_VAR_NAME, secretId2
     name-transformation: (Optional) uppercase|lowercase|none
     parse-json-secrets: (Optional) true|false
+    json-secret-keys: (Optional) |
+      key1
+      key2
     auto-select-family-attempt-timeout: (Optional) positive integer
 ```
 Parameters
@@ -59,6 +62,19 @@ By default, the step creates each environment variable name from the secret name
 Set `parse-json-secrets` to `true` to create environment variables for each key/value pair in the JSON.
 
 Note that if the JSON uses case-sensitive keys such as "name" and "Name", the action will have duplicate name conflicts. In this case, set `parse-json-secrets` to `false` and parse the JSON secret value separately. 
+
+- `json-secret-keys`
+
+(Optional) When `parse-json-secrets` is set to `true`, you can specify which keys from the JSON secret should be extracted as environment variables. This prevents over-masking of secret values by only marking the specified keys as secrets.
+
+If not provided, all keys in the JSON will be extracted (default behavior). If an empty list is provided, all keys will be extracted.
+
+Each key should be listed on a separate line. For example:
+```yaml
+json-secret-keys: |
+  DATABASE_PASSWORD
+  API_KEY
+```
 
 - `auto-select-family-attempt-timeout`
 
@@ -219,6 +235,42 @@ Environment variables created:
 TEST_SECRET: secretValue1
 PROD_SECRET: secretValue2
 ```
+
+**Example 6 Selective JSON key extraction to prevent over-masking**
+The following example extracts only specific keys from a JSON secret to prevent over-masking of secret values.
+
+```
+- name: Get secrets with selective key extraction
+  uses: aws-actions/aws-secretsmanager-get-secrets@v2
+  with:
+    secret-ids: |
+      database/credentials
+    parse-json-secrets: true
+    json-secret-keys: |
+      password
+      api_key
+```
+
+If the secret `database/credentials` has the following JSON value:
+
+```json
+{
+  "username": "admin",
+  "password": "super-secret-password", 
+  "host": "db.example.com",
+  "port": "5432",
+  "api_key": "sk-1234567890abcdef"
+}
+```
+
+Only these environment variables would be created:
+
+```
+DATABASE_CREDENTIALS_PASSWORD: "super-secret-password"
+DATABASE_CREDENTIALS_API_KEY: "sk-1234567890abcdef"
+```
+
+The values "admin", "db.example.com", and "5432" would NOT be marked as secrets, preventing them from being masked in logs and making debugging easier.
 
 ## Security
 
