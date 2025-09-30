@@ -23,9 +23,10 @@ jobs:
           npm ci
           npm run test
       - name: Codecov
-        uses: codecov/codecov-action@v5.4.2
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        uses: codecov/codecov-action@v5
+        with:
+          fail_ci_if_error: true
+          use_oidc: true
 
   uppercase-transformation-integration-test:
     runs-on: ubuntu-latest
@@ -41,12 +42,12 @@ jobs:
           name-transformation: uppercase
           parse-json-secrets: true
           secret-ids: |
-              SampleSecret1
-              /special/chars/secret
-              0/special/chars/secret
-              PrefixSecret*
-              JsonSecret
-              SAMPLESECRET1_ALIAS, SampleSecret1
+            SampleSecret1
+            /special/chars/secret
+            0/special/chars/secret
+            PrefixSecret*
+            JsonSecret
+            SAMPLESECRET1_ALIAS, SampleSecret1
       - name: Assert
         run: npm run integration-test __integration_tests__/name_transformation/uppercase.test.ts
 
@@ -64,12 +65,12 @@ jobs:
           name-transformation: lowercase
           parse-json-secrets: true
           secret-ids: |
-              SampleSecret1
-              /special/chars/secret
-              0/special/chars/secret
-              PrefixSecret*
-              JsonSecret
-              samplesecret1_alias, SampleSecret1
+            SampleSecret1
+            /special/chars/secret
+            0/special/chars/secret
+            PrefixSecret*
+            JsonSecret
+            samplesecret1_alias, SampleSecret1
       - name: Assert
         run: npm run integration-test __integration_tests__/name_transformation/lowercase.test.ts
 
@@ -87,12 +88,12 @@ jobs:
           name-transformation: none
           parse-json-secrets: true
           secret-ids: |
-              SampleSecret1
-              /special/chars/secret
-              0/special/chars/secret
-              PrefixSecret*
-              JsonSecret
-              SampleSecret1_Alias, SampleSecret1
+            SampleSecret1
+            /special/chars/secret
+            0/special/chars/secret
+            PrefixSecret*
+            JsonSecret
+            SampleSecret1_Alias, SampleSecret1
       - name: Assert
         run: npm run integration-test __integration_tests__/name_transformation/none.test.ts
 
@@ -109,12 +110,12 @@ jobs:
         with:
           parse-json-secrets: true
           secret-ids: |
-              SampleSecret1
-              /special/chars/secret
-              0/special/chars/secret
-              PrefixSecret*
-              JsonSecret
-              SAMPLESECRET1_ALIAS, SampleSecret1
+            SampleSecret1
+            /special/chars/secret
+            0/special/chars/secret
+            PrefixSecret*
+            JsonSecret
+            SAMPLESECRET1_ALIAS, SampleSecret1
       - name: Assert
         run: npm run integration-test __integration_tests__/name_transformation/uppercase.test.ts
 
@@ -147,6 +148,6 @@ jobs:
         uses: ./
         with:
           secret-ids: JsonSecret
-          auto-select-family-attempt-timeout: '2000'
+          auto-select-family-attempt-timeout: "2000"
       - name: Assert
         run: npm run integration-test __integration_tests__/parse_json_secrets.test.ts

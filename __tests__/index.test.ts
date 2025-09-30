@@ -2,6 +2,7 @@ import * as core from '@actions/core'
 import { mockClient } from "aws-sdk-client-mock";
 import {
     GetSecretValueCommand, ListSecretsCommand,
+    ResourceNotFoundException,
     SecretsManagerClient,
 } from '@aws-sdk/client-secrets-manager';
 import { run } from "../src";
@@ -62,16 +63,16 @@ jest.mock('@actions/core', () => {
         setFailed: jest.fn(),
         info: jest.fn(),
         debug: jest.fn(),
-        exportVariable:  jest.fn((name: string, val: string) => process.env[name] = val),
-        setSecret:  jest.fn(),
+        exportVariable: jest.fn((name: string, val: string) => process.env[name] = val),
+        setSecret: jest.fn(),
     };
 });
 
 jest.mock('net', () => {
-        return {
-            setDefaultAutoSelectFamilyAttemptTimeout: jest.fn()
-        }
-    });
+    return {
+        setDefaultAutoSelectFamilyAttemptTimeout: jest.fn()
+    }
+});
 
 describe('Test main action', () => {
     const OLD_ENV = process.env;
@@ -79,7 +80,7 @@ describe('Test main action', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         smMockClient.reset();
-        process.env = {...OLD_ENV, ...DEFAULT_TEST_ENV};
+        process.env = { ...OLD_ENV, ...DEFAULT_TEST_ENV };
     });
 
     afterEach(() => {
@@ -89,7 +90,7 @@ describe('Test main action', () => {
     test('Retrieves and sets the requested secrets as environment variables, parsing JSON', async () => {
         const getInputSpy = jest.spyOn(core, 'getInput');
         getInputSpy.mockImplementation((name) => {
-            switch(name) {
+            switch (name) {
                 case 'auto-select-family-attempt-timeout':
                     return DEFAULT_TIMEOUT;
                 case 'name-transformation':
@@ -102,14 +103,14 @@ describe('Test main action', () => {
         const multilineInputSpy = jest.spyOn(core, "getMultilineInput").mockReturnValue(
             [TEST_NAME, TEST_INPUT_3, TEST_ARN_INPUT, BLANK_ALIAS_INPUT]
         );
-        
+
 
         // Mock all Secrets Manager calls
         smMockClient
-            .on(GetSecretValueCommand, { SecretId: TEST_NAME_1})
+            .on(GetSecretValueCommand, { SecretId: TEST_NAME_1 })
             .resolves({ Name: TEST_NAME_1, SecretString: SECRET_1 })
-            .on(GetSecretValueCommand, {SecretId: TEST_NAME_2 })
-            .resolves({  Name: TEST_NAME_2, SecretString: SECRET_2 })
+            .on(GetSecretValueCommand, { SecretId: TEST_NAME_2 })
+            .resolves({ Name: TEST_NAME_2, SecretString: SECRET_2 })
             .on(GetSecretValueCommand, { SecretId: TEST_NAME_3 })
             .resolves({ Name: TEST_NAME_3, SecretString: SECRET_3 })
             .on(GetSecretValueCommand, { // Retrieve arn secret
@@ -215,6 +216,33 @@ describe('Test main action', () => {
         multilineInputSpy.mockClear();
     });
 
+    test('Fails the action when Secrets Manager GetSecretValue fails', async () => {
+        const booleanSpy = jest.spyOn(core, "getBooleanInput").mockReturnValue(true);
+        const multilineInputSpy = jest.spyOn(core, "getMultilineInput").mockReturnValue(
+            [TEST_NAME, TEST_INPUT_3, TEST_ARN_INPUT]
+        );
+
+        smMockClient.on(ListSecretsCommand).resolves({
+            SecretList: [
+                {
+                    Name: TEST_NAME_1
+                },
+                {
+                    Name: TEST_NAME_2
+                }
+            ]
+        }).on(GetSecretValueCommand)
+            .rejects(new ResourceNotFoundException({
+                $metadata: {}, message: "Secrets Manager can't find the specified secret."
+            }));
+
+        await run();
+        expect(core.setFailed).toHaveBeenCalledWith(expect.stringContaining("Failed to fetch secret:"));
+
+        booleanSpy.mockClear();
+        multilineInputSpy.mockClear();
+    });
+
     test('Fails the action when multiple secrets exported the same variable name', async () => {
         const booleanSpy = jest.spyOn(core, "getBooleanInput").mockReturnValue(true);
         const multilineInputSpy = jest.spyOn(core, "getMultilineInput").mockReturnValue(
@@ -223,9 +251,9 @@ describe('Test main action', () => {
         const nameTransformationSpy = jest.spyOn(core, 'getInput').mockReturnValue('uppercase');
 
         smMockClient
-            .on(GetSecretValueCommand, { SecretId: TEST_NAME_1})
+            .on(GetSecretValueCommand, { SecretId: TEST_NAME_1 })
             .resolves({ Name: TEST_NAME_1, SecretString: SECRET_1 })
-            .on(GetSecretValueCommand, {SecretId: TEST_NAME_2 })
+            .on(GetSecretValueCommand, { SecretId: TEST_NAME_2 })
             .resolves({ Name: TEST_NAME_2, SecretString: SECRET_2 })
             .on(GetSecretValueCommand, { SecretId: TEST_NAME_3 })
             .resolves({ Name: TEST_NAME_3, SecretString: SECRET_3 })
@@ -237,7 +265,7 @@ describe('Test main action', () => {
                 SecretString: SECRET_4
             })
             .on(GetSecretValueCommand) // default
-            .resolves({Name: "DefaultName", SecretString: "Default"})
+            .resolves({ Name: "DefaultName", SecretString: "Default" })
             .on(ListSecretsCommand)
             .resolves({
                 SecretList: [
@@ -259,13 +287,13 @@ describe('Test main action', () => {
     });
 
 
-    test('Keep existing cleanup list', async() => {
+    test('Keep existing cleanup list', async () => {
         // Set existing cleanup list
-        process.env = {...process.env, SECRETS_LIST_CLEAN_UP: JSON.stringify(["EXISTING_TEST_SECRET", "EXISTING_TEST_SECRET_DB_HOST"])};
+        process.env = { ...process.env, SECRETS_LIST_CLEAN_UP: JSON.stringify(["EXISTING_TEST_SECRET", "EXISTING_TEST_SECRET_DB_HOST"]) };
 
         const getInputSpy = jest.spyOn(core, 'getInput');
         getInputSpy.mockImplementation((name) => {
-            switch(name) {
+            switch (name) {
                 case 'auto-select-family-attempt-timeout':
                     return DEFAULT_TIMEOUT;
                 case 'name-transformation':
@@ -283,10 +311,10 @@ describe('Test main action', () => {
 
         // Mock all Secrets Manager calls
         smMockClient
-            .on(GetSecretValueCommand, { SecretId: TEST_NAME_1})
+            .on(GetSecretValueCommand, { SecretId: TEST_NAME_1 })
             .resolves({ Name: TEST_NAME_1, SecretString: SECRET_1 })
-            .on(GetSecretValueCommand, {SecretId: TEST_NAME_2 })
-            .resolves({  Name: TEST_NAME_2, SecretString: SECRET_2 })
+            .on(GetSecretValueCommand, { SecretId: TEST_NAME_2 })
+            .resolves({ Name: TEST_NAME_2, SecretString: SECRET_2 })
             .on(GetSecretValueCommand, { SecretId: TEST_NAME_3 })
             .resolves({ Name: TEST_NAME_3, SecretString: SECRET_3 })
             .on(GetSecretValueCommand, { // Retrieve arn secret
@@ -345,19 +373,19 @@ describe('Test main action', () => {
         multilineInputSpy.mockClear();
         getInputSpy.mockClear();
     })
-    
+
     test('handles invalid timeout string', async () => {
         const timeoutSpy = jest.spyOn(core, 'getInput').mockReturnValue(INVALID_TIMEOUT_STRING);
 
         smMockClient
-        .on(GetSecretValueCommand)
-        .resolves({ SecretString: 'test' });
-        
+            .on(GetSecretValueCommand)
+            .resolves({ SecretString: 'test' });
+
         await run();
-        
+
         expect(core.setFailed).toHaveBeenCalled();
 
-        
+
         timeoutSpy.mockClear();
 
     });
@@ -366,24 +394,24 @@ describe('Test main action', () => {
         const timeoutSpy = jest.spyOn(core, 'getInput').mockReturnValue(VALID_TIMEOUT);
 
         smMockClient
-        .on(GetSecretValueCommand)
-        .resolves({ SecretString: 'test' });
+            .on(GetSecretValueCommand)
+            .resolves({ SecretString: 'test' });
 
         await run();
-        
+
         expect(net.setDefaultAutoSelectFamilyAttemptTimeout).toHaveBeenCalledWith(3000);
 
-        
+
         timeoutSpy.mockClear();
     });
-    
+
 
     test('handles invalid timeout value', async () => {
         const timeoutSpy = jest.spyOn(core, 'getInput').mockReturnValue(INVALID_TIMEOUT);
 
         smMockClient
-        .on(GetSecretValueCommand)
-        .resolves({ SecretString: 'test' });
+            .on(GetSecretValueCommand)
+            .resolves({ SecretString: 'test' });
 
         await run();
 
@@ -392,5 +420,5 @@ describe('Test main action', () => {
 
         timeoutSpy.mockClear();
     })
-    
+
 });
