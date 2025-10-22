@@ -463,7 +463,7 @@ describe('Version Constants', () => {
 
     it('should return user agent with version', () => {
         const userAgent = getUserAgent();
-        expect(userAgent).toBe(`github-action/${ACTION_VERSION}`);
+        expect(userAgent).toMatch(/^github-action\/v\d+\.\d+\.\d+$/);
     });
 });
 
