@@ -5,9 +5,6 @@ inputs:
     description: Region where the credentials will be assumed
     required: false
     default: us-east-1
-permissions:
-  id-token: write
-  contents: read
 runs:
   using: composite
   steps:
@@ -20,7 +17,7 @@ runs:
     - name: Determine role to assume
       id: role-to-assume
       run: |
-        if [ "${{ github.repository_owner }}" == "aws-actions" ]; then
+        if [ "${{ github.event_name }}" == "push" ]; then
           # Use prod role for the PRs running against the main repo
           echo "arn=arn:aws:iam::339713045997:role/GithubActionsRole" >> "$GITHUB_OUTPUT"
         else
@@ -29,7 +26,7 @@ runs:
         fi
       shell: bash
     - name: Configure AWS Credentials
-      uses: aws-actions/configure-aws-credentials@v4
+      uses: aws-actions/configure-aws-credentials@v5
       with:
         role-to-assume: ${{ steps.role-to-assume.outputs.arn }}
         aws-region: ${{ inputs.aws-region }}
