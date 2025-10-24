@@ -5,9 +5,6 @@ inputs:
     description: Region where the credentials will be assumed
     required: false
     default: us-east-1
-permissions:
-  id-token: write
-  contents: read
 runs:
   using: composite
   steps:
