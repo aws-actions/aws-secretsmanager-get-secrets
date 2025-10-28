@@ -19,7 +19,7 @@ import {
     TransformationFunc
 } from "../src/utils";
 
-import { CLEANUP_NAME, LIST_SECRETS_MAX_RESULTS } from "../src/constants";
+import { CLEANUP_NAME, LIST_SECRETS_MAX_RESULTS, ACTION_VERSION, getUserAgent } from "../src/constants";
 
 const TEST_NAME = 'test/secret';
 const TEST_ENV_NAME = 'TEST_SECRET';
@@ -455,3 +455,16 @@ describe('Test secret parsing and handling', () => {
         expect(() => parseTransformationFunction(input)).toThrow();
     });
 });
+
+describe('Version Constants', () => {
+    it('should have a valid version format', () => {
+        expect(ACTION_VERSION).toMatch(/^v\d+\.\d+\.\d+$/);
+    });
+
+    it('should return user agent with version', () => {
+        const userAgent = getUserAgent();
+        expect(userAgent).toMatch(/^github-action\/v\d+\.\d+\.\d+$/);
+    });
+});
+
+

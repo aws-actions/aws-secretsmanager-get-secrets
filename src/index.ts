@@ -10,7 +10,7 @@ import {
     SecretValueResponse, isJSONString,
     parseTransformationFunction
 } from "./utils";
-import { CLEANUP_NAME } from "./constants";
+import { CLEANUP_NAME, getUserAgent } from "./constants";
 
 export async function run(): Promise<void> {
     try {
@@ -32,7 +32,7 @@ export async function run(): Promise<void> {
 
 
         // Default client region is set by configure-aws-credentials
-        const client : SecretsManagerClient = new SecretsManagerClient({region: process.env.AWS_DEFAULT_REGION, customUserAgent: "github-action"});
+        const client : SecretsManagerClient = new SecretsManagerClient({region: process.env.AWS_DEFAULT_REGION, customUserAgent: getUserAgent()});
         const secretConfigInputs: string[] = [...new Set(core.getMultilineInput('secret-ids'))];
         const parseJsonSecrets = core.getBooleanInput('parse-json-secrets');
         const nameTransformation = parseTransformationFunction(core.getInput('name-transformation'));
