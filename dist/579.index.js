@@ -8,7 +8,6 @@ exports.modules = {
 
 
 
-var schema = __webpack_require__(26890);
 var utilUtf8 = __webpack_require__(71577);
 
 class EventStreamSerde {
@@ -28,7 +27,6 @@ class EventStreamSerde {
         const marshaller = this.marshaller;
         const eventStreamMember = requestSchema.getEventStreamMember();
         const unionSchema = requestSchema.getMemberSchema(eventStreamMember);
-        unionSchema.getMemberSchemas();
         const serializer = this.serializer;
         const defaultContentType = this.defaultContentType;
         const initialRequestMarker = Symbol("initialRequestMarker");
@@ -86,8 +84,9 @@ class EventStreamSerde {
             const unionMember = Object.keys(event).find((key) => {
                 return key !== "__type";
             }) ?? "";
+            const body = event[unionMember].body;
             if (unionMember === "initial-response") {
-                const dataObject = await this.deserializer.read(responseSchema, event[unionMember].body);
+                const dataObject = await this.deserializer.read(responseSchema, body);
                 delete dataObject[eventStreamMember];
                 return {
                     [initialResponseMarker]: true,
@@ -96,8 +95,53 @@ class EventStreamSerde {
             }
             else if (unionMember in memberSchemas) {
                 const eventStreamSchema = memberSchemas[unionMember];
+                if (eventStreamSchema.isStructSchema()) {
+                    const out = {};
+                    let hasBindings = false;
+                    for (const [name, member] of eventStreamSchema.structIterator()) {
+                        const { eventHeader, eventPayload } = member.getMergedTraits();
+                        hasBindings = hasBindings || Boolean(eventHeader || eventPayload);
+                        if (eventPayload) {
+                            if (member.isBlobSchema()) {
+                                out[name] = body;
+                            }
+                            else if (member.isStringSchema()) {
+                                out[name] = (this.serdeContext?.utf8Encoder ?? utilUtf8.toUtf8)(body);
+                            }
+                            else if (member.isStructSchema()) {
+                                out[name] = await this.deserializer.read(member, body);
+                            }
+                        }
+                        else if (eventHeader) {
+                            const value = event[unionMember].headers[name]?.value;
+                            if (value != null) {
+                                if (member.isNumericSchema()) {
+                                    if (value && typeof value === "object" && "bytes" in value) {
+                                        out[name] = BigInt(value.toString());
+                                    }
+                                    else {
+                                        out[name] = Number(value);
+                                    }
+                                }
+                                else {
+                                    out[name] = value;
+                                }
+                            }
+                        }
+                    }
+                    if (hasBindings) {
+                        return {
+                            [unionMember]: out,
+                        };
+                    }
+                    if (body.byteLength === 0) {
+                        return {
+                            [unionMember]: {},
+                        };
+                    }
+                }
                 return {
-                    [unionMember]: await this.deserializer.read(eventStreamSchema, event[unionMember].body),
+                    [unionMember]: await this.deserializer.read(eventStreamSchema, body),
                 };
             }
             else {
@@ -139,12 +183,15 @@ class EventStreamSerde {
         let eventType = unionMember;
         let explicitPayloadMember = null;
         let explicitPayloadContentType;
-        const isKnownSchema = unionSchema.hasMemberSchema(unionMember);
+        const isKnownSchema = (() => {
+            const struct = unionSchema.getSchema();
+            return struct[4].includes(unionMember);
+        })();
         const additionalHeaders = {};
         if (!isKnownSchema) {
             const [type, value] = event[unionMember];
             eventType = type;
-            serializer.write(schema.SCHEMA.DOCUMENT, value);
+            serializer.write(15, value);
         }
         else {
             const eventSchema = unionSchema.getMemberSchema(unionMember);
@@ -153,7 +200,6 @@ class EventStreamSerde {
                     const { eventHeader, eventPayload } = memberSchema.getMergedTraits();
                     if (eventPayload) {
                         explicitPayloadMember = memberName;
-                        break;
                     }
                     else if (eventHeader) {
                         const value = event[unionMember][memberName];
