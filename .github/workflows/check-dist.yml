@@ -36,6 +36,7 @@ jobs:
         id: setup-node
         uses: actions/setup-node@v6
         with:
+          node-version: 24
           cache: npm
 
       # Install dependencies using `npm ci`.
