@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Run Unit Tests
         run: |
           npm ci
@@ -33,7 +33,7 @@ jobs:
     needs: unit-tests
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Build
         uses: ./.github/actions/build
       - name: Act
@@ -56,7 +56,7 @@ jobs:
     needs: unit-tests
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Build
         uses: ./.github/actions/build
       - name: Act
@@ -79,7 +79,7 @@ jobs:
     needs: unit-tests
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Build
         uses: ./.github/actions/build
       - name: Act
@@ -102,7 +102,7 @@ jobs:
     needs: unit-tests
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Build
         uses: ./.github/actions/build
       - name: Act
@@ -124,7 +124,7 @@ jobs:
     needs: unit-tests
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Build
         uses: ./.github/actions/build
       - name: Act
@@ -139,7 +139,7 @@ jobs:
     needs: unit-tests
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Build
         uses: ./.github/actions/build
         with:
