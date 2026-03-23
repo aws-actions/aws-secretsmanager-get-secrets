@@ -3,12 +3,12 @@ exports.id = 579;
 exports.ids = [579];
 exports.modules = {
 
-/***/ 56579:
+/***/ 6579:
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
 
-var utilUtf8 = __webpack_require__(71577);
+var utilUtf8 = __webpack_require__(1577);
 
 class EventStreamSerde {
     marshaller;
@@ -251,7 +251,7 @@ class EventStreamSerde {
                 throw new Error("@smithy/core/event-streams - non-struct member not supported in event stream union.");
             }
         }
-        const messageSerialization = serializer.flush();
+        const messageSerialization = serializer.flush() ?? new Uint8Array();
         const body = typeof messageSerialization === "string"
             ? (this.serdeContext?.utf8Decoder ?? utilUtf8.fromUtf8)(messageSerialization)
             : messageSerialization;

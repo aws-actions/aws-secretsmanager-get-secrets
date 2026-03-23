@@ -3,17 +3,17 @@ exports.id = 956;
 exports.ids = [956];
 exports.modules = {
 
-/***/ 88079:
+/***/ 8079:
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.fromTokenFile = void 0;
 const client_1 = __webpack_require__(5152);
-const property_provider_1 = __webpack_require__(71238);
-const shared_ini_file_loader_1 = __webpack_require__(94964);
-const node_fs_1 = __webpack_require__(73024);
-const fromWebToken_1 = __webpack_require__(34453);
+const property_provider_1 = __webpack_require__(1238);
+const shared_ini_file_loader_1 = __webpack_require__(4964);
+const node_fs_1 = __webpack_require__(3024);
+const fromWebToken_1 = __webpack_require__(4453);
 const ENV_TOKEN_FILE = "AWS_WEB_IDENTITY_TOKEN_FILE";
 const ENV_ROLE_ARN = "AWS_ROLE_ARN";
 const ENV_ROLE_SESSION_NAME = "AWS_ROLE_SESSION_NAME";
@@ -44,7 +44,7 @@ exports.fromTokenFile = fromTokenFile;
 
 /***/ }),
 
-/***/ 34453:
+/***/ 4453:
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -113,13 +113,13 @@ exports.fromWebToken = fromWebToken;
 
 /***/ }),
 
-/***/ 29956:
+/***/ 9956:
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
 
-var fromTokenFile = __webpack_require__(88079);
-var fromWebToken = __webpack_require__(34453);
+var fromTokenFile = __webpack_require__(8079);
+var fromWebToken = __webpack_require__(4453);
 
 
 
