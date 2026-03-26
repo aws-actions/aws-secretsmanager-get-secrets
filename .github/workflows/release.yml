@@ -20,4 +20,4 @@ jobs:
           git config user.email "$(git log -n 1 --pretty=format:%ae)"
           echo "Updating ${MAJOR} tag"
           git tag -fa ${MAJOR} -m "Update major version tag"
-          git push origin ${MAJOR} --force
+          git push origin ${MAJOR} --force-with-lease --force-if-includes
