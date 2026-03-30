@@ -23,7 +23,7 @@ jobs:
           npm ci
           npm run test
       - name: Codecov
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v6
         with:
           fail_ci_if_error: true
           use_oidc: true
