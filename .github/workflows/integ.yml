@@ -1,0 +1,202 @@
+name: Integration Tests
+
+on:
+  workflow_dispatch:
+  pull_request_target:
+    types: [labeled]
+  push:
+    branches:
+      - main
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  uppercase-transformation-integration-test:
+    if: |
+      github.event_name != 'pull_request_target' ||
+      contains(github.event.pull_request.labels.*.name, 'safe-to-test')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event_name == 'pull_request_target' && github.event.pull_request.head.sha || github.sha }}
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ secrets.ROLE_ARN }}
+          aws-region: us-east-1
+      - name: Install dependencies
+        run: npm ci
+      - name: Build the dist folder
+        run: npm run build
+      - name: Act
+        uses: ./
+        with:
+          name-transformation: uppercase
+          parse-json-secrets: true
+          secret-ids: |
+            SampleSecret1
+            /special/chars/secret
+            0/special/chars/secret
+            PrefixSecret*
+            JsonSecret
+            SAMPLESECRET1_ALIAS, SampleSecret1
+      - name: Assert
+        run: npm run integration-test __integration_tests__/name_transformation/uppercase.test.ts
+
+  lowercase-transformation-integration-test:
+    if: |
+      github.event_name != 'pull_request_target' ||
+      contains(github.event.pull_request.labels.*.name, 'safe-to-test')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event_name == 'pull_request_target' && github.event.pull_request.head.sha || github.sha }}
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ secrets.ROLE_ARN }}
+          aws-region: us-east-1
+      - name: Install dependencies
+        run: npm ci
+      - name: Build the dist folder
+        run: npm run build
+      - name: Act
+        uses: ./
+        with:
+          name-transformation: lowercase
+          parse-json-secrets: true
+          secret-ids: |
+            SampleSecret1
+            /special/chars/secret
+            0/special/chars/secret
+            PrefixSecret*
+            JsonSecret
+            samplesecret1_alias, SampleSecret1
+      - name: Assert
+        run: npm run integration-test __integration_tests__/name_transformation/lowercase.test.ts
+
+  none-transformation-integration-test:
+    if: |
+      github.event_name != 'pull_request_target' ||
+      contains(github.event.pull_request.labels.*.name, 'safe-to-test')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event_name == 'pull_request_target' && github.event.pull_request.head.sha || github.sha }}
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ secrets.ROLE_ARN }}
+          aws-region: us-east-1
+      - name: Install dependencies
+        run: npm ci
+      - name: Build the dist folder
+        run: npm run build
+      - name: Act
+        uses: ./
+        with:
+          name-transformation: none
+          parse-json-secrets: true
+          secret-ids: |
+            SampleSecret1
+            /special/chars/secret
+            0/special/chars/secret
+            PrefixSecret*
+            JsonSecret
+            SampleSecret1_Alias, SampleSecret1
+      - name: Assert
+        run: npm run integration-test __integration_tests__/name_transformation/none.test.ts
+
+  default-name-transformation-param-integration-test:
+    if: |
+      github.event_name != 'pull_request_target' ||
+      contains(github.event.pull_request.labels.*.name, 'safe-to-test')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event_name == 'pull_request_target' && github.event.pull_request.head.sha || github.sha }}
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ secrets.ROLE_ARN }}
+          aws-region: us-east-1
+      - name: Install dependencies
+        run: npm ci
+      - name: Build the dist folder
+        run: npm run build
+      - name: Act
+        uses: ./
+        with:
+          parse-json-secrets: true
+          secret-ids: |
+            SampleSecret1
+            /special/chars/secret
+            0/special/chars/secret
+            PrefixSecret*
+            JsonSecret
+            SAMPLESECRET1_ALIAS, SampleSecret1
+      - name: Assert
+        run: npm run integration-test __integration_tests__/name_transformation/uppercase.test.ts
+
+  default-parse-json-secrets-integration-test:
+    if: |
+      github.event_name != 'pull_request_target' ||
+      contains(github.event.pull_request.labels.*.name, 'safe-to-test')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event_name == 'pull_request_target' && github.event.pull_request.head.sha || github.sha }}
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ secrets.ROLE_ARN }}
+          aws-region: us-east-1
+      - name: Install dependencies
+        run: npm ci
+      - name: Build the dist folder
+        run: npm run build
+      - name: Act
+        uses: ./
+        with:
+          secret-ids: JsonSecret
+      - name: Assert Default Is No Json Secrets
+        run: npm run integration-test __integration_tests__/parse_json_secrets.test.ts
+
+  af-south-1-integration-test:
+    if: |
+      github.event_name != 'pull_request_target' ||
+      contains(github.event.pull_request.labels.*.name, 'safe-to-test')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event_name == 'pull_request_target' && github.event.pull_request.head.sha || github.sha }}
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ secrets.ROLE_ARN }}
+          aws-region: af-south-1
+      - name: Install dependencies
+        run: npm ci
+      - name: Build the dist folder
+        run: npm run build
+      - name: Act
+        uses: ./
+        with:
+          secret-ids: JsonSecret
+          auto-select-family-attempt-timeout: "2000"
+      - name: Assert
+        run: npm run integration-test __integration_tests__/parse_json_secrets.test.ts
