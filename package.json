@@ -28,7 +28,7 @@
   "homepage": "https://github.com/aws-actions/aws-secretsmanager-get-secrets#readme",
   "dependencies": {
     "@actions/core": "^2.0.0",
-    "@aws-sdk/client-secrets-manager": "^3.606.0"
+    "@aws-sdk/client-secrets-manager": "^3.1024.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.4",
