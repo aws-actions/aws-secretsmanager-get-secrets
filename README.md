@@ -27,7 +27,7 @@ To use the action, add a step to your workflow that uses the following syntax.
 
 ```
 - name: Step name
-  uses: aws-actions/aws-secretsmanager-get-secrets@v2
+  uses: aws-actions/aws-secretsmanager-get-secrets@v3
   with:
     secret-ids: |
       secretId1
@@ -101,7 +101,7 @@ The following example creates environment variables for secrets identified by na
 
 ```
 - name: Get secrets by name and by ARN
-  uses: aws-actions/aws-secretsmanager-get-secrets@v2
+  uses: aws-actions/aws-secretsmanager-get-secrets@v3
   with:
     secret-ids: |
       exampleSecretName
@@ -129,7 +129,7 @@ The following example creates environment variables for all secrets with names t
 
 ```
 - name: Get Secret Names by Prefix
-  uses: aws-actions/aws-secretsmanager-get-secrets@v2
+  uses: aws-actions/aws-secretsmanager-get-secrets@v3
   with:
     secret-ids: |
       beta*    # Retrieves all secrets that start with 'beta'
@@ -147,7 +147,7 @@ The following example creates environment variables by parsing the JSON in the s
 
 ```
 - name: Get Secrets by Name and by ARN
-  uses: aws-actions/aws-secretsmanager-get-secrets@v2
+  uses: aws-actions/aws-secretsmanager-get-secrets@v3
   with:
     secret-ids: |
       test/secret
@@ -188,7 +188,7 @@ The following example creates an environment variable with a lowercase name.
 
 ```
 - name: Get secrets
-  uses: aws-actions/aws-secretsmanager-get-secrets@v2
+  uses: aws-actions/aws-secretsmanager-get-secrets@v3
   with:
     secret-ids: exampleSecretName
     name-transformation: lowercase
@@ -205,7 +205,7 @@ The following example sets the timeout between each call to be 2 seconds
 
 ```
 - name: Get secrets with custom timeout
-  uses: aws-actions/aws-secretsmanager-get-secrets@v2
+  uses: aws-actions/aws-secretsmanager-get-secrets@v3
   with:
     secret-ids: |
       test/secret
