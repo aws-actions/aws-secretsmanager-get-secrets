@@ -32,15 +32,6 @@ var __importStar = (this && this.__importStar) || (function () {
         return result;
     };
 })();
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.buildSecretsList = buildSecretsList;
 exports.getSecretsWithPrefix = getSecretsWithPrefix;
@@ -63,28 +54,26 @@ require("aws-sdk-client-mock-jest");
  * @param configInputs: List of secret names, ARNs, and prefixes provided by user
  * @param nameTransformation: Transforms the secret name
  */
-function buildSecretsList(client, configInputs, nameTransformation) {
-    return __awaiter(this, void 0, void 0, function* () {
-        const finalSecretsList = new Set();
-        // Prefix filters should be at least 3 characters, ending in *
-        const validFilter = new RegExp('^[a-zA-Z0-9\\/_+=.@-]{3,}\\*$');
-        for (const configInput of configInputs) {
-            if (configInput.includes('*')) {
-                const [secretAlias, secretPrefix] = extractAliasAndSecretIdFromInput(configInput, nameTransformation);
-                if (!validFilter.test(secretPrefix)) {
-                    throw new Error('Please use a valid prefix search (should be at least 3 characters and end in *)');
-                }
-                // Find and add results for a given prefix
-                const prefixMatches = yield getSecretsWithPrefix(client, secretPrefix, !!secretAlias);
-                // Add back the alias, if one was requested
-                prefixMatches.forEach(secret => finalSecretsList.add(secretAlias ? `${secretAlias},${secret}` : secret));
+async function buildSecretsList(client, configInputs, nameTransformation) {
+    const finalSecretsList = new Set();
+    // Prefix filters should be at least 3 characters, ending in *
+    const validFilter = new RegExp('^[a-zA-Z0-9\\/_+=.@-]{3,}\\*$');
+    for (const configInput of configInputs) {
+        if (configInput.includes('*')) {
+            const [secretAlias, secretPrefix] = extractAliasAndSecretIdFromInput(configInput, nameTransformation);
+            if (!validFilter.test(secretPrefix)) {
+                throw new Error('Please use a valid prefix search (should be at least 3 characters and end in *)');
             }
-            else {
-                finalSecretsList.add(configInput);
-            }
+            // Find and add results for a given prefix
+            const prefixMatches = await getSecretsWithPrefix(client, secretPrefix, !!secretAlias);
+            // Add back the alias, if one was requested
+            prefixMatches.forEach(secret => finalSecretsList.add(secretAlias ? `${secretAlias},${secret}` : secret));
         }
-        return [...finalSecretsList];
-    });
+        else {
+            finalSecretsList.add(configInput);
+        }
+    }
+    return [...finalSecretsList];
 }
 /**
  * Uses ListSecrets to find secrets for a given prefix
@@ -93,44 +82,42 @@ function buildSecretsList(client, configInputs, nameTransformation) {
  * @param prefix: Name to search for
  * @param hasAlias: Flag to indicate that an alias was requested (can only match 1 secret)
  */
-function getSecretsWithPrefix(client, prefix, hasAlias) {
-    return __awaiter(this, void 0, void 0, function* () {
-        const params = {
-            Filters: [
-                {
-                    Key: "name",
-                    Values: [
-                        prefix.replace('*', ''),
-                    ]
-                },
-            ],
-            MaxResults: constants_1.LIST_SECRETS_MAX_RESULTS,
-        };
-        const response = yield client.send(new client_secrets_manager_1.ListSecretsCommand(params));
-        if (response.SecretList) {
-            const secretsList = response.SecretList;
-            if (secretsList.length === 0) {
-                throw new Error(`No matching secrets were returned for prefix "${prefix}".`);
-            }
-            else if (hasAlias && secretsList.length > 1) {
-                // If an alias was requested, we cannot match more than one result
-                throw new Error(`A unique alias was requested for prefix "${prefix}", but the search result for this prefix returned multiple results.`);
-            }
-            else if (response.NextToken) {
-                // If there is a second page of results, this exceeds the max number of matches
-                throw new Error(`A search for prefix "${prefix}" matched more than the maximum of ${constants_1.LIST_SECRETS_MAX_RESULTS} secrets per prefix.`);
-            }
-            return secretsList.reduce((foundSecrets, secret) => {
-                if (secret.Name) {
-                    foundSecrets.push(secret.Name);
-                }
-                return foundSecrets;
-            }, []);
+async function getSecretsWithPrefix(client, prefix, hasAlias) {
+    const params = {
+        Filters: [
+            {
+                Key: "name",
+                Values: [
+                    prefix.replace('*', ''),
+                ]
+            },
+        ],
+        MaxResults: constants_1.LIST_SECRETS_MAX_RESULTS,
+    };
+    const response = await client.send(new client_secrets_manager_1.ListSecretsCommand(params));
+    if (response.SecretList) {
+        const secretsList = response.SecretList;
+        if (secretsList.length === 0) {
+            throw new Error(`No matching secrets were returned for prefix "${prefix}".`);
         }
-        else {
-            throw new Error('Invalid response from ListSecrets occurred');
+        else if (hasAlias && secretsList.length > 1) {
+            // If an alias was requested, we cannot match more than one result
+            throw new Error(`A unique alias was requested for prefix "${prefix}", but the search result for this prefix returned multiple results.`);
         }
-    });
+        else if (response.NextToken) {
+            // If there is a second page of results, this exceeds the max number of matches
+            throw new Error(`A search for prefix "${prefix}" matched more than the maximum of ${constants_1.LIST_SECRETS_MAX_RESULTS} secrets per prefix.`);
+        }
+        return secretsList.reduce((foundSecrets, secret) => {
+            if (secret.Name) {
+                foundSecrets.push(secret.Name);
+            }
+            return foundSecrets;
+        }, []);
+    }
+    else {
+        throw new Error('Invalid response from ListSecrets occurred');
+    }
 }
 /**
  * Retrieves a secret from Secrets Manager
@@ -139,25 +126,23 @@ function getSecretsWithPrefix(client, prefix, hasAlias) {
  * @param secretId: The name or full ARN of a secret
  * @returns SecretValueResponse
  */
-function getSecretValue(client, secretId) {
-    return __awaiter(this, void 0, void 0, function* () {
-        let secretValue = '';
-        const data = yield client.send(new client_secrets_manager_1.GetSecretValueCommand({ SecretId: secretId }));
-        if (data.SecretString) {
-            secretValue = data.SecretString;
-        }
-        else if (data.SecretBinary) {
-            // Only string and JSON string values are supported in Github env
-            secretValue = Buffer.from(data.SecretBinary).toString('ascii');
-        }
-        if (!(data.Name)) {
-            throw new Error('Invalid name for secret');
-        }
-        return {
-            name: data.Name,
-            secretValue
-        };
-    });
+async function getSecretValue(client, secretId) {
+    let secretValue = '';
+    const data = await client.send(new client_secrets_manager_1.GetSecretValueCommand({ SecretId: secretId }));
+    if (data.SecretString) {
+        secretValue = data.SecretString;
+    }
+    else if (data.SecretBinary) {
+        // Only string and JSON string values are supported in Github env
+        secretValue = Buffer.from(data.SecretBinary).toString('ascii');
+    }
+    if (!(data.Name)) {
+        throw new Error('Invalid name for secret');
+    }
+    return {
+        name: data.Name,
+        secretValue
+    };
 }
 /**
  * Transforms and injects secret as a masked environmental variable
@@ -209,7 +194,7 @@ function isJSONString(secretValue) {
         const parsedObject = JSON.parse(secretValue);
         return !!parsedObject && (typeof parsedObject === 'object') && !Array.isArray(parsedObject);
     }
-    catch (_a) {
+    catch {
         // Not JSON if the string fails to parse
         return false;
     }
