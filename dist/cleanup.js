@@ -32,15 +32,6 @@ var __importStar = (this && this.__importStar) || (function () {
         return result;
     };
 })();
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.cleanup = cleanup;
 const core = __importStar(require("@actions/core"));
@@ -56,32 +47,30 @@ const utils_1 = require("./utils");
  * give us additional assurance that these environment variables are not shared
  * with any other jobs.
  */
-function cleanup() {
-    return __awaiter(this, void 0, void 0, function* () {
-        try {
-            const cleanupSecrets = process.env[constants_1.CLEANUP_NAME];
-            if (cleanupSecrets) {
-                // The GitHub Actions toolkit does not have an option to completely unset
-                // environment variables, so we overwrite the current value with an empty
-                // string.
-                JSON.parse(cleanupSecrets).forEach((env) => {
-                    (0, utils_1.cleanVariable)(env);
-                    if (!process.env[env]) {
-                        core.debug(`Removed secret: ${env}`);
-                    }
-                    else {
-                        throw new Error(`Failed to clean secret from environment: ${env}.`);
-                    }
-                });
-                // Clean overall secret list
-                (0, utils_1.cleanVariable)(constants_1.CLEANUP_NAME);
-            }
-            core.info("Cleanup complete.");
+async function cleanup() {
+    try {
+        const cleanupSecrets = process.env[constants_1.CLEANUP_NAME];
+        if (cleanupSecrets) {
+            // The GitHub Actions toolkit does not have an option to completely unset
+            // environment variables, so we overwrite the current value with an empty
+            // string.
+            JSON.parse(cleanupSecrets).forEach((env) => {
+                (0, utils_1.cleanVariable)(env);
+                if (!process.env[env]) {
+                    core.debug(`Removed secret: ${env}`);
+                }
+                else {
+                    throw new Error(`Failed to clean secret from environment: ${env}.`);
+                }
+            });
+            // Clean overall secret list
+            (0, utils_1.cleanVariable)(constants_1.CLEANUP_NAME);
         }
-        catch (error) {
-            if (error instanceof Error)
-                core.setFailed(error.message);
-        }
-    });
+        core.info("Cleanup complete.");
+    }
+    catch (error) {
+        if (error instanceof Error)
+            core.setFailed(error.message);
+    }
 }
 cleanup();
