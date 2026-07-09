@@ -26,3 +26,10 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    groups:
+      dependencies:
+        applies-to: version-updates
+        update-types:
+          - major
+          - minor
+          - patch
