@@ -11,7 +11,7 @@ jobs:
   update-tag:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Get major version num and update tag
         run: |
           VERSION=${GITHUB_REF#refs/tags/}
