@@ -55,7 +55,6 @@ exports.parseTransformationFunction = parseTransformationFunction;
 const core = __importStar(require("@actions/core"));
 const client_secrets_manager_1 = require("@aws-sdk/client-secrets-manager");
 const constants_1 = require("./constants");
-require("aws-sdk-client-mock-jest");
 /**
  * Gets the unique list of all secrets to be requested
  *
