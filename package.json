@@ -31,16 +31,16 @@
     "@aws-sdk/client-secrets-manager": "^3.606.0"
   },
   "devDependencies": {
-    "@eslint/eslintrc": "^3.3.4",
+    "@eslint/eslintrc": "^3.3.7",
     "@eslint/js": "^10.0.1",
     "@types/jest": "^30.0.0",
-    "@typescript-eslint/eslint-plugin": "^8.56.1",
+    "@typescript-eslint/eslint-plugin": "^8.69.0",
     "@typescript-eslint/parser": "^8.56.1",
-    "@vercel/ncc": "^0.38.1",
+    "@vercel/ncc": "^0.45.0",
     "aws-sdk-client-mock": "^4.0.1",
     "aws-sdk-client-mock-jest": "^4.0.1",
-    "eslint": "^10.0.2",
-    "jest": "^30.0.0",
-    "ts-jest": "^29.1.5"
+    "eslint": "^10.9.1",
+    "jest": "^30.5.1",
+    "ts-jest": "^29.4.12"
   }
 }
