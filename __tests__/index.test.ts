@@ -6,12 +6,19 @@ import {
     ResourceNotFoundException,
     SecretsManagerClient,
 } from '@aws-sdk/client-secrets-manager';
+import { ProxyAgent } from 'proxy-agent';
+import { NodeHttpHandler } from '@smithy/node-http-handler';
 import { run } from "../src";
 import { CLEANUP_NAME } from "../src/constants";
+import * as proxy from "../src/proxy";
+import { PROCESS_EXIT_GRACE_MS } from "../src/proxy";
 
 const DEFAULT_TEST_ENV = {
     AWS_DEFAULT_REGION: 'us-east-1'
 };
+
+// Cleared before each test so the developer's own proxy settings do not affect the results
+const PROXY_ENV_VARS = ['HTTPS_PROXY', 'https_proxy', 'HTTP_PROXY', 'http_proxy', 'NO_PROXY', 'no_proxy'];
 
 import * as net from 'net';
 
@@ -55,6 +62,9 @@ const INVALID_TIMEOUT_STRING = 'abc';
 const DEFAULT_TIMEOUT = '1000';
 const INVALID_TIMEOUT = '9';
 
+const PROXY_URL = 'http://proxy.example.com:3128';
+const PROXY_URL_WITH_CREDENTIALS = 'http://alice:p%40ss@proxy.example.com:3128';
+
 // Mock the inputs for Github action
 jest.mock('@actions/core', () => {
     return {
@@ -75,13 +85,36 @@ jest.mock('net', () => {
     }
 });
 
+// jest cannot load proxy-agent (ESM-only); the integration tests exercise the real library
+jest.mock('proxy-agent', () => {
+    return {
+        ProxyAgent: jest.fn(),
+    };
+});
+
+/*
+ * getInput implementation: the action's defaults, overridden by the given inputs, and '' for anything else
+ */
+function inputs(values: Record<string, string>): (name: string) => string {
+    const withDefaults: Record<string, string> = {
+        'auto-select-family-attempt-timeout': DEFAULT_TIMEOUT,
+        'name-transformation': 'uppercase',
+        ...values
+    };
+    return (name: string) => withDefaults[name] ?? '';
+}
+
 describe('Test main action', () => {
     const OLD_ENV = process.env;
+
+    // The action schedules a process exit when a proxy is configured; never let it end the test run
+    const processExit = jest.spyOn(process, 'exit').mockImplementation((() => undefined) as never);
 
     beforeEach(() => {
         jest.clearAllMocks();
         smMockClient.reset();
         process.env = { ...OLD_ENV, ...DEFAULT_TEST_ENV };
+        PROXY_ENV_VARS.forEach(name => delete process.env[name]);
     });
 
     afterEach(() => {
@@ -392,7 +425,8 @@ describe('Test main action', () => {
     });
 
     test('handles valid timeout value', async () => {
-        const timeoutSpy = jest.spyOn(core, 'getInput').mockReturnValue(VALID_TIMEOUT);
+        // A blanket return value would also be read as the http-proxy input
+        const timeoutSpy = jest.spyOn(core, 'getInput').mockImplementation(inputs({ 'auto-select-family-attempt-timeout': VALID_TIMEOUT }));
 
         smMockClient
             .on(GetSecretValueCommand)
@@ -401,6 +435,7 @@ describe('Test main action', () => {
         await run();
 
         expect(net.setDefaultAutoSelectFamilyAttemptTimeout).toHaveBeenCalledWith(3000);
+        expect(core.setFailed).not.toHaveBeenCalledWith(expect.stringContaining('proxy'));
 
 
         timeoutSpy.mockClear();
@@ -421,5 +456,221 @@ describe('Test main action', () => {
 
         timeoutSpy.mockClear();
     })
+
+    describe('HTTP proxy', () => {
+        // Captures the config of the client the action built
+        function captureClientConfig(): () => SecretsManagerClient['config'] | undefined {
+            let config: SecretsManagerClient['config'] | undefined;
+            smMockClient
+                .on(GetSecretValueCommand)
+                .callsFake((_input, getClient) => {
+                    config = getClient().config;
+                    return { Name: TEST_NAME_3, SecretString: SECRET_3 };
+                });
+            return () => config;
+        }
+
+        beforeEach(() => {
+            jest.spyOn(core, 'getBooleanInput').mockReturnValue(false);
+            jest.spyOn(core, 'getMultilineInput').mockReturnValue([TEST_NAME_3]);
+        });
+
+        test('Does not configure a proxy by default', async () => {
+            jest.spyOn(core, 'getInput').mockImplementation(inputs({}));
+            const buildSpy = jest.spyOn(proxy, 'buildProxyRequestHandler');
+            captureClientConfig();
+
+            await run();
+
+            expect(core.setFailed).not.toHaveBeenCalled();
+            expect(buildSpy).not.toHaveBeenCalled();
+            expect(ProxyAgent).not.toHaveBeenCalled();
+            expect(core.info).not.toHaveBeenCalledWith(expect.stringContaining('proxy'));
+            expect(core.exportVariable).toHaveBeenCalledWith(TEST_NAME_3.toUpperCase().replace('/', '_'), SECRET_3);
+        });
+
+        test('Routes API calls through the proxy from the http-proxy input', async () => {
+            jest.spyOn(core, 'getInput').mockImplementation(inputs({
+                'http-proxy': PROXY_URL,
+                'no-proxy': '.example.com',
+            }));
+            const buildSpy = jest.spyOn(proxy, 'buildProxyRequestHandler');
+            const clientConfig = captureClientConfig();
+
+            await run();
+
+            expect(core.setFailed).not.toHaveBeenCalled();
+            expect(buildSpy).toHaveBeenCalledWith({ proxyUrl: PROXY_URL, noProxy: '.example.com', source: 'http-proxy input' });
+            expect(ProxyAgent).toHaveBeenCalledWith(expect.objectContaining({ keepAlive: true, getProxyForUrl: expect.any(Function) }));
+            // The handler built for the proxy is the one the client uses
+            expect(clientConfig()?.requestHandler).toBeInstanceOf(NodeHttpHandler);
+            expect(clientConfig()?.requestHandler).toBe(buildSpy.mock.results[0].value);
+            expect(core.setSecret).toHaveBeenCalledWith(PROXY_URL);
+            expect(core.info).toHaveBeenCalledWith('Using the HTTP proxy configured by http-proxy input for Secrets Manager API calls.');
+            // Secrets are still retrieved and injected as before
+            expect(core.exportVariable).toHaveBeenCalledWith(TEST_NAME_3.toUpperCase().replace('/', '_'), SECRET_3);
+        });
+
+        test('Falls back to the standard proxy environment variables', async () => {
+            jest.spyOn(core, 'getInput').mockImplementation(inputs({}));
+            process.env.HTTPS_PROXY = PROXY_URL;
+            process.env.NO_PROXY = 'localhost';
+            const buildSpy = jest.spyOn(proxy, 'buildProxyRequestHandler');
+            const clientConfig = captureClientConfig();
+
+            await run();
+
+            expect(core.setFailed).not.toHaveBeenCalled();
+            expect(buildSpy).toHaveBeenCalledWith({ proxyUrl: PROXY_URL, noProxy: 'localhost', source: 'HTTPS_PROXY' });
+            expect(clientConfig()?.requestHandler).toBe(buildSpy.mock.results[0].value);
+            expect(core.info).toHaveBeenCalledWith('Using the HTTP proxy configured by HTTPS_PROXY for Secrets Manager API calls.');
+        });
+
+        test('Masks proxy credentials', async () => {
+            jest.spyOn(core, 'getInput').mockImplementation(inputs({
+                'http-proxy': PROXY_URL_WITH_CREDENTIALS,
+            }));
+            captureClientConfig();
+
+            await run();
+
+            expect(core.setFailed).not.toHaveBeenCalled();
+            expect(core.setSecret).toHaveBeenCalledWith(PROXY_URL_WITH_CREDENTIALS);
+            expect(core.setSecret).toHaveBeenCalledWith('alice');
+            expect(core.setSecret).toHaveBeenCalledWith('p%40ss');
+            expect(core.setSecret).toHaveBeenCalledWith('p@ss');
+        });
+
+        test('Fails before calling Secrets Manager when the proxy URL is invalid', async () => {
+            jest.spyOn(core, 'getInput').mockImplementation(inputs({
+                'http-proxy': 'socks5://proxy.example.com:1080',
+            }));
+            captureClientConfig();
+
+            await run();
+
+            expect(core.setFailed).toHaveBeenCalledTimes(1);
+            expect(core.setFailed).toHaveBeenCalledWith("Unsupported proxy scheme 'socks5:'. Only http and https proxies are supported.");
+            expect(ProxyAgent).not.toHaveBeenCalled();
+            expect(smMockClient).not.toHaveReceivedAnyCommand();
+            expect(core.exportVariable).not.toHaveBeenCalled();
+        });
+
+        test('Explains a rejection by the proxy when fetching a secret', async () => {
+            jest.spyOn(core, 'getInput').mockImplementation(inputs({
+                'http-proxy': PROXY_URL,
+            }));
+            // A proxy's 407 reaches the SDK as an unknown error carrying the status code
+            const rejection = Object.assign(new Error('UnknownError'), { name: 'Unknown', $metadata: { httpStatusCode: 407 } });
+            smMockClient.on(GetSecretValueCommand).rejects(rejection);
+
+            await run();
+
+            expect(core.setFailed).toHaveBeenCalledTimes(1);
+            expect(core.setFailed).toHaveBeenCalledWith(expect.stringContaining(`Failed to fetch secret: '${TEST_NAME_3}'.`));
+            expect(core.setFailed).toHaveBeenCalledWith(expect.stringContaining('which may have rejected it (HTTP 407)'));
+            expect(core.setFailed).not.toHaveBeenCalledWith(expect.stringContaining(PROXY_URL));
+        });
+
+        test('Explains a rejection by the proxy when listing secrets', async () => {
+            jest.spyOn(core, 'getInput').mockImplementation(inputs({
+                'http-proxy': PROXY_URL,
+            }));
+            jest.spyOn(core, 'getMultilineInput').mockReturnValue([TEST_NAME]);
+            const rejection = Object.assign(new Error('UnknownError'), { name: 'Unknown', $metadata: { httpStatusCode: 403 } });
+            smMockClient.on(ListSecretsCommand).rejects(rejection);
+
+            await run();
+
+            expect(core.setFailed).toHaveBeenCalledTimes(1);
+            expect(core.setFailed).toHaveBeenCalledWith(expect.stringMatching(/^UnknownError .*HTTP 403/));
+        });
+
+        test('Accepts a proxy environment value without a scheme and masks it', async () => {
+            jest.spyOn(core, 'getInput').mockImplementation(inputs({}));
+            process.env.https_proxy = 'proxy.example.com:3128';
+            const buildSpy = jest.spyOn(proxy, 'buildProxyRequestHandler');
+            captureClientConfig();
+
+            await run();
+
+            expect(core.setFailed).not.toHaveBeenCalled();
+            expect(buildSpy).toHaveBeenCalledWith({ proxyUrl: 'http://proxy.example.com:3128', source: 'https_proxy' });
+            expect(core.setSecret).toHaveBeenCalledWith('http://proxy.example.com:3128');
+        });
+
+        test('Fails before calling Secrets Manager when proxy credentials are not percent-encoded', async () => {
+            jest.spyOn(core, 'getInput').mockImplementation(inputs({ 'http-proxy': 'http://svc:50%off@proxy.example.com:3128' }));
+            captureClientConfig();
+
+            await run();
+
+            expect(core.setFailed).toHaveBeenCalledTimes(1);
+            expect(core.setFailed).toHaveBeenCalledWith(expect.stringContaining('invalid percent-encoding'));
+            expect(core.setFailed).not.toHaveBeenCalledWith(expect.stringContaining('50%off'));
+            expect(ProxyAgent).not.toHaveBeenCalled();
+            expect(smMockClient).not.toHaveReceivedAnyCommand();
+        });
+
+        test('Schedules a process exit once done when a proxy is configured', async () => {
+            jest.useFakeTimers();
+            try {
+                jest.spyOn(core, 'getInput').mockImplementation(inputs({ 'http-proxy': PROXY_URL }));
+                captureClientConfig();
+
+                await run();
+
+                expect(processExit).not.toHaveBeenCalled();
+                jest.advanceTimersByTime(PROCESS_EXIT_GRACE_MS);
+                expect(processExit).toHaveBeenCalledTimes(1);
+            } finally {
+                jest.useRealTimers();
+            }
+        });
+
+        test('Does not schedule a process exit without a proxy', async () => {
+            jest.useFakeTimers();
+            try {
+                jest.spyOn(core, 'getInput').mockImplementation(inputs({}));
+                captureClientConfig();
+
+                await run();
+
+                jest.advanceTimersByTime(PROCESS_EXIT_GRACE_MS);
+                expect(processExit).not.toHaveBeenCalled();
+            } finally {
+                jest.useRealTimers();
+            }
+        });
+
+        test('Ignores an unusable proxy from the environment when no-proxy is "*"', async () => {
+            jest.spyOn(core, 'getInput').mockImplementation(inputs({ 'no-proxy': '*' }));
+            process.env.HTTPS_PROXY = 'socks5://proxy.example.com:1080';
+            const buildSpy = jest.spyOn(proxy, 'buildProxyRequestHandler');
+            captureClientConfig();
+
+            await run();
+
+            expect(core.setFailed).not.toHaveBeenCalled();
+            expect(core.info).toHaveBeenCalledWith("Ignoring the HTTP proxy configured by HTTPS_PROXY because no-proxy is '*'.");
+            expect(buildSpy).not.toHaveBeenCalled();
+            expect(ProxyAgent).not.toHaveBeenCalled();
+            expect(core.exportVariable).toHaveBeenCalledWith(TEST_NAME_3.toUpperCase().replace('/', '_'), SECRET_3);
+        });
+
+        test('Does not add the proxy hint to unrelated failures', async () => {
+            jest.spyOn(core, 'getInput').mockImplementation(inputs({
+                'http-proxy': PROXY_URL,
+            }));
+            smMockClient.on(GetSecretValueCommand).rejects(new ResourceNotFoundException({
+                $metadata: { httpStatusCode: 400 }, message: "Secrets Manager can't find the specified secret."
+            }));
+
+            await run();
+
+            expect(core.setFailed).toHaveBeenCalledTimes(1);
+            expect(core.setFailed).not.toHaveBeenCalledWith(expect.stringContaining('proxy'));
+        });
+    });
 
 });

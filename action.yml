@@ -20,6 +20,12 @@ inputs:
     description: '(Optional) Timeout (ms) for dual-stack DNS first IP connection attempt. Needed for geographically distant GitHub action workers'
     required: false
     default: '1000'
+  http-proxy:
+    description: '(Optional) HTTP or HTTPS proxy URL to route Secrets Manager API calls through, e.g. http://proxy.example.com:3128. Defaults to the https_proxy/HTTPS_PROXY or http_proxy/HTTP_PROXY environment variable. Set no-proxy to "*" to ignore a proxy from the environment.'
+    required: false
+  no-proxy:
+    description: '(Optional) Comma-separated hosts that bypass the proxy, e.g. .amazonaws.com, or "*" for all hosts. Defaults to the no_proxy/NO_PROXY environment variable. Only used when a proxy is configured.'
+    required: false
 runs:
   using: 'node24'
   main: 'dist/index.js'
