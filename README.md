@@ -35,6 +35,8 @@ To use the action, add a step to your workflow that uses the following syntax.
     name-transformation: (Optional) uppercase|lowercase|none
     parse-json-secrets: (Optional) true|false
     auto-select-family-attempt-timeout: (Optional) positive integer
+    http-proxy: (Optional) proxy URL
+    no-proxy: (Optional) comma-separated hosts
 ```
 Parameters
 
@@ -65,6 +67,41 @@ Note that if the JSON uses case-sensitive keys such as "name" and "Name", the ac
 (Optional - default 1000) Specifies the timeout (in milliseconds) for attempting to connect to the first IP address in a dual-stack DNS lookup. This setting is crucial especially when GitHub Action workers are geographically distant from the target region where the secrets are stored. The timeout must be greater than ot equal to 10 ms
 
 Set `auto-select-family-attempt-timeout` to any positive integer that is greater than or equal to 10 ms to set the timeout between each call to that value in milliseconds. 
+
+- `http-proxy`
+
+(Optional) An HTTP or HTTPS proxy for the Secrets Manager API calls, for example `http://proxy.example.com:3128`. If not set, the action uses `https_proxy`, `HTTPS_PROXY`, `http_proxy` or `HTTP_PROXY` from the environment, in that order. See [Use an HTTP proxy](#use-an-http-proxy).
+
+- `no-proxy`
+
+(Optional) Comma-separated hosts to connect to directly, for example `.amazonaws.com`, or `*` for all hosts. If not set, the action uses `no_proxy` or `NO_PROXY` from the environment.
+
+### Use an HTTP proxy
+
+Only `http://` and `https://` proxies are supported; a value without a scheme is treated as `http://`. Self-hosted runners that are configured for a proxy export the proxy variables to every step, so the action uses their proxy unless you set `no-proxy: "*"`.
+
+`no-proxy` entries are matched case-insensitively and can be a host name, which also matches its subdomains (`amazonaws.com`), a suffix starting with `.` or `*` (`.amazonaws.com`), or `*` for every host, each optionally followed by `:port`.
+
+If the proxy requires a login, put it in the URL (`http://user:password@proxy.example.com:3128`) with special characters percent-encoded (`@` as `%40`, `%` as `%25`), and pass the URL from a GitHub secret: the runner prints a step's inputs in the job log before the action can mask them. With an `http://` proxy the login is sent to the proxy unencrypted on every connection, so prefer an `https://` proxy when a login is required.
+
+The action never falls back to a direct connection. If the proxy is invalid, cannot be reached, times out, or refuses the request (HTTP 403 or 407), the step fails.
+
+```
+- name: Get secrets through a proxy
+  uses: aws-actions/aws-secretsmanager-get-secrets@v3
+  with:
+    secret-ids: exampleSecretName
+    http-proxy: ${{ secrets.PROXY_URL }}   # e.g. http://proxy.example.com:3128
+    no-proxy: localhost,127.0.0.1
+```
+
+Or, with no inputs, through a proxy set in the runner's environment:
+
+```
+HTTPS_PROXY=http://proxy.example.com:3128
+NO_PROXY=localhost,127.0.0.1
+```
+
 ### Environment variable naming
 
 The environment variables created by the action are named the same as the secrets they come from. Environment variables have stricter naming requirements than secrets, so the action transforms secret names to meet those requirements. For example, the action transforms lowercase letters to uppercase letters. If you parse the JSON of the secret, then the environment variable name includes both the secret name and the JSON key name, for example `MYSECRET_KEYNAME`.
@@ -218,6 +255,12 @@ Environment variables created:
 ```
 TEST_SECRET: secretValue1
 PROD_SECRET: secretValue2
+```
+
+Environment variable created:
+
+```
+EXAMPLESECRETNAME: secretValue
 ```
 
 ## Security

@@ -1,0 +1,10 @@
+{
+  "inputs": ["./package.json"],
+  "output": "./dist/licenses.txt",
+  "overwrite": true,
+  "ci": true,
+  "append": [
+    "./licenses/ncc.txt",
+    "./licenses/supports-color.txt"
+  ]
+}
