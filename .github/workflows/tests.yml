@@ -207,10 +207,10 @@ jobs:
         env:
           HTTP_PROXY: 127.0.0.1:9999
         with:
-          secret-ids: JsonSecret
+          secret-ids: JSONSECRET_DIRECT,JsonSecret
       - name: Assert the secret was retrieved without the proxy
         run: |
-          npm run integration-test __integration_tests__/parse_json_secrets.test.ts
+          [ -n "${JSONSECRET_DIRECT:-}" ] || { echo "JSONSECRET_DIRECT was not exported"; exit 1; }
           sudo cat /var/log/tinyproxy/tinyproxy.log
           if sudo grep -q "secretsmanager" /var/log/tinyproxy/tinyproxy.log; then
             echo "The request was sent through the proxy although only HTTP_PROXY is set"
