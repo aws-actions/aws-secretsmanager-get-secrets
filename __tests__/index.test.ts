@@ -506,7 +506,7 @@ describe('Test main action', () => {
             expect(clientConfig()?.requestHandler).toBeInstanceOf(NodeHttpHandler);
             expect(clientConfig()?.requestHandler).toBe(buildSpy.mock.results[0].value);
             expect(core.setSecret).toHaveBeenCalledWith(PROXY_URL);
-            expect(core.info).toHaveBeenCalledWith('Using the HTTP proxy configured by http-proxy input for Secrets Manager API calls.');
+            expect(core.info).toHaveBeenCalledWith('Using the HTTP proxy configured by http-proxy input for Secrets Manager API calls, except to hosts matching no-proxy (.example.com).');
             // Secrets are still retrieved and injected as before
             expect(core.exportVariable).toHaveBeenCalledWith(TEST_NAME_3.toUpperCase().replace('/', '_'), SECRET_3);
         });
@@ -523,7 +523,22 @@ describe('Test main action', () => {
             expect(core.setFailed).not.toHaveBeenCalled();
             expect(buildSpy).toHaveBeenCalledWith({ proxyUrl: PROXY_URL, noProxy: 'localhost', source: 'HTTPS_PROXY' });
             expect(clientConfig()?.requestHandler).toBe(buildSpy.mock.results[0].value);
-            expect(core.info).toHaveBeenCalledWith('Using the HTTP proxy configured by HTTPS_PROXY for Secrets Manager API calls.');
+            expect(core.info).toHaveBeenCalledWith('Using the HTTP proxy configured by HTTPS_PROXY for Secrets Manager API calls, except to hosts matching no-proxy (localhost).');
+        });
+
+        test.each(['HTTP_PROXY', 'http_proxy'])('Does not use %s, which applies to http:// requests', async (name) => {
+            jest.spyOn(core, 'getInput').mockImplementation(inputs({}));
+            process.env[name] = PROXY_URL;
+            const buildSpy = jest.spyOn(proxy, 'buildProxyRequestHandler');
+            captureClientConfig();
+
+            await run();
+
+            expect(core.setFailed).not.toHaveBeenCalled();
+            expect(buildSpy).not.toHaveBeenCalled();
+            expect(ProxyAgent).not.toHaveBeenCalled();
+            expect(core.info).toHaveBeenCalledWith('Not using http_proxy/HTTP_PROXY because Secrets Manager API calls are https. Set https_proxy, HTTPS_PROXY or the http-proxy input to send them through a proxy.');
+            expect(core.exportVariable).toHaveBeenCalledWith(TEST_NAME_3.toUpperCase().replace('/', '_'), SECRET_3);
         });
 
         test('Masks proxy credentials', async () => {

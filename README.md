@@ -70,11 +70,11 @@ Set `auto-select-family-attempt-timeout` to any positive integer that is greater
 
 - `http-proxy`
 
-(Optional) An HTTP or HTTPS proxy for the Secrets Manager API calls, for example `http://proxy.example.com:3128`. If not set, the action uses `https_proxy`, `HTTPS_PROXY`, `http_proxy` or `HTTP_PROXY` from the environment, in that order. See [Use an HTTP proxy](#use-an-http-proxy).
+(Optional) An HTTP or HTTPS proxy for the Secrets Manager API calls, for example `http://proxy.example.com:3128`. If not set, the action uses `https_proxy` or `HTTPS_PROXY` from the environment. See [Use an HTTP proxy](#use-an-http-proxy).
 
 - `no-proxy`
 
-(Optional) Comma-separated hosts to connect to directly, for example `.amazonaws.com`, or `*` for all hosts. If not set, the action uses `no_proxy` or `NO_PROXY` from the environment.
+(Optional) Comma-separated hosts to connect to directly, for example `.amazonaws.com`, or `*` for all hosts. If not set, the action uses `no_proxy` or `NO_PROXY` from the environment, also when the proxy comes from the `http-proxy` input.
 
 ### Use an HTTP proxy
 

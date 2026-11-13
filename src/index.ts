@@ -50,13 +50,17 @@ export async function run(): Promise<void> {
             // The documented opt-out for runners that export proxy variables; the value is not even validated
             core.info(`Ignoring the HTTP proxy configured by ${proxy.source} because no-proxy contains '*'.`);
             proxy = undefined;
+        } else if (!proxy && (process.env.http_proxy || process.env.HTTP_PROXY)) {
+            // Set for the http:// traffic of other tools on the runner; the API calls are https
+            core.info('Not using http_proxy/HTTP_PROXY because Secrets Manager API calls are https. Set https_proxy, HTTPS_PROXY or the http-proxy input to send them through a proxy.');
         }
         let requestHandler: NodeHttpHandler | undefined = undefined;
         if (proxy) {
             const proxyUrl = validateProxyUrl(proxy.proxyUrl);
             maskProxySecrets(proxy.proxyUrl, proxyUrl);
             requestHandler = buildProxyRequestHandler(proxy);
-            core.info(`Using the HTTP proxy configured by ${proxy.source} for Secrets Manager API calls.`);
+            const exceptions = proxy.noProxy ? `, except to hosts matching no-proxy (${proxy.noProxy})` : '';
+            core.info(`Using the HTTP proxy configured by ${proxy.source} for Secrets Manager API calls${exceptions}.`);
         }
 
         // Default client region is set by configure-aws-credentials

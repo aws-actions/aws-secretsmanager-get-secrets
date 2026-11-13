@@ -22,6 +22,7 @@ const SM_ENDPOINT = 'https://secretsmanager.us-east-1.amazonaws.com/';
 jest.mock('@actions/core', () => {
     return {
         setSecret: jest.fn(),
+        debug: jest.fn(),
     };
 });
 
@@ -52,17 +53,19 @@ describe('resolveProxySettings', () => {
     });
 
     test('The input takes precedence over every environment variable', () => {
-        const env = { https_proxy: 'http://a', HTTPS_PROXY: 'http://b', http_proxy: 'http://c', HTTP_PROXY: 'http://d' };
+        const env = { https_proxy: 'http://a', HTTPS_PROXY: 'http://b' };
         expect(resolveProxySettings(PROXY_URL, '', env)).toEqual({ proxyUrl: PROXY_URL, source: 'http-proxy input' });
     });
 
     test.each([
-        [{ https_proxy: 'http://a', HTTPS_PROXY: 'http://b', http_proxy: 'http://c', HTTP_PROXY: 'http://d' }, 'http://a', 'https_proxy'],
-        [{ HTTPS_PROXY: 'http://b', http_proxy: 'http://c', HTTP_PROXY: 'http://d' }, 'http://b', 'HTTPS_PROXY'],
-        [{ http_proxy: 'http://c', HTTP_PROXY: 'http://d' }, 'http://c', 'http_proxy'],
-        [{ HTTP_PROXY: 'http://d' }, 'http://d', 'HTTP_PROXY'],
+        [{ https_proxy: 'http://a', HTTPS_PROXY: 'http://b' }, 'http://a', 'https_proxy'],
+        [{ HTTPS_PROXY: 'http://b' }, 'http://b', 'HTTPS_PROXY'],
     ])('Environment precedence: %p resolves to %s from %s', (env, proxyUrl, source) => {
         expect(resolveProxySettings('', '', env)).toEqual({ proxyUrl, source });
+    });
+
+    test('Does not read http_proxy or HTTP_PROXY, which apply to http:// requests', () => {
+        expect(resolveProxySettings('', '', { http_proxy: 'http://c', HTTP_PROXY: 'http://d', NO_PROXY: 'localhost' })).toBeUndefined();
     });
 
     test('Trims whitespace from environment values', () => {
@@ -262,7 +265,7 @@ describe('buildProxyRequestHandler', () => {
 });
 
 describe('proxyErrorHint', () => {
-    const settings: ProxySettings = { proxyUrl: PROXY_URL, source: 'HTTP_PROXY' };
+    const settings: ProxySettings = { proxyUrl: PROXY_URL, source: 'HTTPS_PROXY' };
 
     test('Is empty when no proxy is configured', () => {
         expect(proxyErrorHint({ $metadata: { httpStatusCode: 407 } }, undefined)).toBe('');
@@ -271,7 +274,7 @@ describe('proxyErrorHint', () => {
     test.each([407, 403])('Explains an HTTP %i received through the proxy', (statusCode) => {
         const hint = proxyErrorHint({ $metadata: { httpStatusCode: statusCode } }, settings);
         expect(hint).toContain(`HTTP ${statusCode}`);
-        expect(hint).toContain('HTTP_PROXY');
+        expect(hint).toContain('HTTPS_PROXY');
         expect(hint).not.toContain(PROXY_URL);
     });
 

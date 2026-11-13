@@ -59219,12 +59219,17 @@ function run() {
                 core.info(`Ignoring the HTTP proxy configured by ${proxy.source} because no-proxy contains '*'.`);
                 proxy = undefined;
             }
+            else if (!proxy && (process.env.http_proxy || process.env.HTTP_PROXY)) {
+                // Set for the http:// traffic of other tools on the runner; the API calls are https
+                core.info('Not using http_proxy/HTTP_PROXY because Secrets Manager API calls are https. Set https_proxy, HTTPS_PROXY or the http-proxy input to send them through a proxy.');
+            }
             let requestHandler = undefined;
             if (proxy) {
                 const proxyUrl = (0, proxy_1.validateProxyUrl)(proxy.proxyUrl);
                 (0, proxy_1.maskProxySecrets)(proxy.proxyUrl, proxyUrl);
                 requestHandler = (0, proxy_1.buildProxyRequestHandler)(proxy);
-                core.info(`Using the HTTP proxy configured by ${proxy.source} for Secrets Manager API calls.`);
+                const exceptions = proxy.noProxy ? `, except to hosts matching no-proxy (${proxy.noProxy})` : '';
+                core.info(`Using the HTTP proxy configured by ${proxy.source} for Secrets Manager API calls${exceptions}.`);
             }
             // Default client region is set by configure-aws-credentials
             const client = new client_secrets_manager_1.SecretsManagerClient(Object.assign({ region: process.env.AWS_DEFAULT_REGION, customUserAgent: (0, constants_1.getUserAgent)() }, (requestHandler && { requestHandler })));
@@ -59348,7 +59353,7 @@ exports.PROXY_SOCKET_TIMEOUT_MS = 10000;
 const INVALID_PROXY_URL_MESSAGE = 'The configured proxy is not a valid URL. Expected the form http[s]://[user:password@]host[:port].';
 const INVALID_PROXY_CREDENTIALS_MESSAGE = 'The proxy credentials contain invalid percent-encoding. Encode special characters in the user name and password, for example % as %25.';
 /**
- * Finds the proxy to use: the http-proxy input, else the first of https_proxy, HTTPS_PROXY, http_proxy, HTTP_PROXY
+ * Finds the proxy to use: the http-proxy input, else https_proxy, else HTTPS_PROXY.
  *
  * @param httpProxyInput: Value of the http-proxy input
  * @param noProxyInput: Value of the no-proxy input
@@ -59360,8 +59365,6 @@ function resolveProxySettings(httpProxyInput, noProxyInput, env = process.env) {
         ['http-proxy input', httpProxyInput],
         ['https_proxy', env.https_proxy],
         ['HTTPS_PROXY', env.HTTPS_PROXY],
-        ['http_proxy', env.http_proxy],
-        ['HTTP_PROXY', env.HTTP_PROXY],
     ];
     for (const [source, value] of candidates) {
         const proxyUrl = value === null || value === void 0 ? void 0 : value.trim();
@@ -59456,7 +59459,9 @@ function getProxyForUrl(settings, requestUrl) {
         return '';
     }
     const port = parseInt(url.port) || DEFAULT_PORTS[protocol];
-    return shouldProxy(url.hostname, port, settings.noProxy) ? settings.proxyUrl : '';
+    const proxied = shouldProxy(url.hostname, port, settings.noProxy);
+    core.debug(proxied ? `Sending the request to ${url.hostname} through the proxy` : `Connecting to ${url.hostname} directly because it matches no-proxy`);
+    return proxied ? settings.proxyUrl : '';
 }
 /**
  * Checks a host against the no-proxy list, case-insensitively. Entries: '*' (every host), a host name, which also

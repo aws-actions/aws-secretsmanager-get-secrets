@@ -2,7 +2,7 @@ import * as core from '@actions/core';
 import { NodeHttpHandler } from '@smithy/node-http-handler';
 import { ProxyAgent } from 'proxy-agent';
 
-export type ProxySource = 'http-proxy input' | 'https_proxy' | 'HTTPS_PROXY' | 'http_proxy' | 'HTTP_PROXY';
+export type ProxySource = 'http-proxy input' | 'https_proxy' | 'HTTPS_PROXY';
 
 export interface ProxySettings {
     proxyUrl: string,
@@ -24,7 +24,7 @@ const INVALID_PROXY_URL_MESSAGE = 'The configured proxy is not a valid URL. Expe
 const INVALID_PROXY_CREDENTIALS_MESSAGE = 'The proxy credentials contain invalid percent-encoding. Encode special characters in the user name and password, for example % as %25.';
 
 /**
- * Finds the proxy to use: the http-proxy input, else the first of https_proxy, HTTPS_PROXY, http_proxy, HTTP_PROXY
+ * Finds the proxy to use: the http-proxy input, else https_proxy, else HTTPS_PROXY.
  *
  * @param httpProxyInput: Value of the http-proxy input
  * @param noProxyInput: Value of the no-proxy input
@@ -36,8 +36,6 @@ export function resolveProxySettings(httpProxyInput: string, noProxyInput: strin
         ['http-proxy input', httpProxyInput],
         ['https_proxy', env.https_proxy],
         ['HTTPS_PROXY', env.HTTPS_PROXY],
-        ['http_proxy', env.http_proxy],
-        ['HTTP_PROXY', env.HTTP_PROXY],
     ];
 
     for (const [source, value] of candidates) {
@@ -141,8 +139,10 @@ export function getProxyForUrl(settings: ProxySettings, requestUrl: string): str
     }
 
     const port = parseInt(url.port) || DEFAULT_PORTS[protocol];
+    const proxied = shouldProxy(url.hostname, port, settings.noProxy);
+    core.debug(proxied ? `Sending the request to ${url.hostname} through the proxy` : `Connecting to ${url.hostname} directly because it matches no-proxy`);
 
-    return shouldProxy(url.hostname, port, settings.noProxy) ? settings.proxyUrl : '';
+    return proxied ? settings.proxyUrl : '';
 }
 
 /**
