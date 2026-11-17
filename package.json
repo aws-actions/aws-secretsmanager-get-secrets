@@ -8,7 +8,7 @@
     "integration-test": "jest --coverage --verbose",
     "lint": "eslint src/**.ts",
     "fix": "eslint src/** --fix",
-    "build": "tsc && ncc build ./src/index.ts --source-map --license licenses.txt && ncc build ./src/cleanup.ts -o dist/cleanup"
+    "build": "tsc && ncc build ./src/index.ts --source-map -e pac-proxy-agent -e socks-proxy-agent && ncc build ./src/cleanup.ts -o dist/cleanup && generate-license-file --config .generatelicensefile.json"
   },
   "repository": {
     "type": "git",
@@ -28,7 +28,9 @@
   "homepage": "https://github.com/aws-actions/aws-secretsmanager-get-secrets#readme",
   "dependencies": {
     "@actions/core": "^2.0.0",
-    "@aws-sdk/client-secrets-manager": "^3.606.0"
+    "@aws-sdk/client-secrets-manager": "^3.606.0",
+    "@smithy/node-http-handler": "^4.14.2",
+    "proxy-agent": "^8.0.2"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.4",
@@ -41,7 +43,11 @@
     "aws-sdk-client-mock": "^4.0.1",
     "aws-sdk-client-mock-jest": "^4.0.1",
     "eslint": "^10.0.2",
+    "generate-license-file": "^4.2.5",
     "jest": "^30.0.0",
     "ts-jest": "^29.1.5"
+  },
+  "overrides": {
+    "basic-ftp": "^6.2.1"
   }
 }
